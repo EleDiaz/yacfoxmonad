@@ -1,6 +1,6 @@
 ------------------------------------------------------------------------
 -- ~/.xmonad/xmonad.hs
-{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE NoMonomorphismRestriction, ParallelListComp #-}
 ------------------------------------------------------------------------
  
 import XMonad -- hiding (Tall)
@@ -18,7 +18,6 @@ import XMonad.Hooks.SetWMName
 import XMonad.Hooks.Minimize
 import XMonad.Hooks.ToggleHook
 import XMonad.Layout.Minimize
---import XMonad.Layout.Grid
 import XMonad.Layout.ResizableTile
 import XMonad.Layout.NoBorders
 import XMonad.Layout.Fullscreen
@@ -30,7 +29,6 @@ import XMonad.Prompt.Shell
 import XMonad.Prompt.XMonad
 import XMonad.Prompt.Man
 import XMonad.Util.Run
---import XMonad.Util.Themes
 import XMonad.Util.EZConfig
 import DBus.Client
 import System.Taffybar.XMonadLog
@@ -41,46 +39,45 @@ import qualified XMonad.StackSet as W
 import qualified Data.Map as M
 
 -- XMonad:
+main :: IO ()
 main = do
-  client <- connectSession
-  --let pp = defaultPP
+  client <- connectSession -- taffybar and dbus
   taff <- spawnPipe "taffybar"
-  --dzen <- spawnPipe myStatusBar
-  --tint <- spawnPipe "trayion"
-  --dzenRightBar <- spawnPipe myStatusOther
-  --trayicon <- spawnPipe "tint2 -c ~/.conky/black_transparency/tint2/tint2rc" --myTrayIcon
   c1 <- spawnPipe "conky -c ~/.conky/.conkyrcmiui"
   c2 <- spawnPipe "conky -c ~/.conky/conky-calendar"
   c3 <- spawnPipe "conky -c ~/.conky/infoconky"
-  --toDo <- spawnPipe myToDo
 
-  xmonad $ ewmh $ myUrgencyHook $ defaultConfig
+  xmonad $ ewmh $ defaultConfig
  
     { terminal           = myTerminal
-    , focusFollowsMouse  = myFocusFollowsMouse
+    , focusFollowsMouse  = False
     , borderWidth        = myBorderWidth
     , modMask            = myModMask
     , workspaces         = myWorkspaces
     , normalBorderColor  = myNormalBorderColor
     , focusedBorderColor = myFocusedBorderColor
  
-    --, keys               = myKeys
-    --, mouseBindings      = myMouseBindings
- 
     , layoutHook         = myLayouts
     , manageHook         = myManageHook <+> manageDocks <+> dynamicMasterHook <+> toggleHook "float" doFloat <+> manageHook defaultConfig
     , handleEventHook    = myHandleEventHook
-    , logHook            = fadeWindowsLogHook myFadeHook <+> dbusLogWithPP client ppTaff -- <+> dynamicLogWithPP (myDzenPP dzen)
+    , logHook            = fadeWindowsLogHook myFadeHook <+> dbusLogWithPP client ppTaff 
     , startupHook        = myStartupHook
     }
       `additionalKeys` myKeys
  
 myTerminal = "terminator"
-myEditor = "SublimeText"
-myFocusFollowsMouse = False
+myEditor = "terminator vim"
 myBorderWidth = 0
 myModMask = mod4Mask
-
+-- Color, font and iconpath definitions:
+myFont = "xft:terminus:size=10"
+myNormalFGColor = "#ffffff"
+myNormalBGColor = "#0f0f0f"
+myFocusedFGColor = "#f0f0f0"
+myFocusedBGColor = "#333333"
+myUrgentFGColor = "#0099ff"
+myUrgentBGColor = "#0077ff"
+ 
 myWorkspaces =
   [
     "7:Chat", "8:Player", "9:Inkscape",
@@ -105,7 +102,7 @@ myStartupHook = do
         spawn "~/.xmonad/startup-hook"
 
 ppTaff :: PP 
-ppTaff = defaultPP { ppHiddenNoWindows = taffybarEscape . (\_ -> "")-- (\wsId -> if wsId == "5:Haskell" then "" else wsId)
+ppTaff = defaultPP { ppHiddenNoWindows = taffybarEscape . const ""-- (\wsId -> if wsId == "5:Haskell" then "" else wsId)
                    , ppLayout = taffybarColor "red" "" .
                         (\x -> case x of
                             "Minimize Full"                                              -> "|Full|"
@@ -115,22 +112,7 @@ ppTaff = defaultPP { ppHiddenNoWindows = taffybarEscape . (\_ -> "")-- (\wsId ->
                             _ -> x)
                    }
 
--- Color, font and iconpath definitions:
-myFont = "xft:terminus:size=10"
-myIconDir = "/home/elediaz/.xmonad/Icons"
-myDzenFGColor = "#555555"
-myDzenBGColor = "#222222"
-myNormalFGColor = "#ffffff"
-myNormalBGColor = "#0f0f0f"
-myFocusedFGColor = "#f0f0f0"
-myFocusedBGColor = "#333333"
-myUrgentFGColor = "#0099ff"
-myUrgentBGColor = "#0077ff"
-myIconFGColor = "#777777"
-myIconBGColor = "#0f0f0f"
-myPatternColor = "#1f1f1f"
-mySeperatorColor = "#555555"
- 
+
 -- GSConfig options:
 myGSConfig = defaultGSConfig
     { gs_cellheight = 50
@@ -153,34 +135,6 @@ myXPConfig = defaultXPConfig
     , historySize = 100
     }
  
--- Theme options:
-myTheme = defaultTheme
-    { activeColor = "" ++ myFocusedBGColor ++ ""
-    , inactiveColor = "" ++ myDzenBGColor ++ ""
-    , urgentColor = "" ++ myUrgentBGColor ++ ""
-    , activeBorderColor = "" ++ myFocusedBorderColor ++ ""
-    , inactiveBorderColor = "" ++ myNormalBorderColor ++ ""
-    , urgentBorderColor = "" ++ myNormalBorderColor ++ ""
-    , activeTextColor = "" ++ myFocusedFGColor ++ ""
-    , inactiveTextColor = "" ++ myDzenFGColor ++ ""
-    , urgentTextColor = "" ++ myUrgentFGColor ++ ""
-    , fontName = "" ++ myFont ++ ""
-    }
- 
--- Statusbar options:
-myConky2, myToDo, myConky :: [Char]
-myConky2 = "conky -c ~/.conky/conkyrc_red"
-myToDo = "conky -c ~/.conky/_.conkyrc2"
-myConky = "conky -c ~/.conky/conkyForecast.template"
-myTrayIcon = "trayer --edge top --align right --SetDockType true --SetPartialStrut false --expand false --width 10 --transparent false --tint 0xa9a9a9 --height 11" -- quitar SetDockType para poder minimizar
-myStatusOther = "conky -c /home/elediaz/.xmonad/.conky_dzen | dzen2 -x '0' -y '500' -w '1366' -h '16' -ta 'r' -bg '#1B1D1E' -fg '#FFFFFF'"
-myStatusBar = "dzen2 -x '0' -y '752' -h '16' -w '1390' -ta 'l' -fg '" ++ myNormalFGColor ++ "' -bg '" ++ myNormalBGColor ++ "' -fn '" ++ myFont ++ "'"
-
-
--- Urgency hint options:
-myUrgencyHook = withUrgencyHook dzenUrgencyHook
-    { args = ["-x", "0", "-y", "0", "-h", "25", "-w", "1390", "-ta", "r", "-expand", "l", "-fg", "" ++ myUrgentFGColor ++ "", "-bg", "" ++ myNormalBGColor ++ "", "-fn", "" ++ myFont ++ ""] }
- 
 --myLayouts =
 -- onWorkspace "Chat" chatLayout
 -- $ defaultLayouts
@@ -189,77 +143,36 @@ myUrgencyHook = withUrgencyHook dzenUrgencyHook
 
 myLayouts = avoidStruts $ minimize (
   ((layoutN 1 (relBox 0 0 0.5 1) (Just $ relBox 0 0 1 1) $ simpleTabbed)
-  $ (layoutAll (relBox 0.5 0 1 1)                         $ simpleTabbed))
+  $ (layoutAll (relBox 0.5 0 1 1)                        $ simpleTabbed))
 
   ||| magnifier (ResizableTall 1 (3/100) (1/2) [])
 
   ||| Mirror (ResizableTall 1 (3/100) (1/2) [])
 
   ||| noBorders Full)
-
-
-
  
 -- Window rules:
-myManageHook = composeAll . concat $ -- the magic shell comand xprop -- for see properties of windows
-    [ [isDialog --> doFloat]
-    , [className =? c --> doFloat | c <- myCFloats]
-    , [title =? t --> doFloat | t <- myTFloats]
-    , [resource =? r --> doFloat | r <- myRFloats]
-    , [resource =? i --> doIgnore | i <- myIgnores]
-    , [className =? "Cairo-dock" --> doIgnore]
-    , [isFullscreen --> doFullFloat]
-    , [(className =? x <||> title =? x <||> resource =? x) --> doShiftAndGo "1:Terminal"  | x <- my1Shifts]
-    , [(className =? x <||> title =? x <||> resource =? x) --> doShiftAndGo "2:Explore"   | x <- my2Shifts]
-    , [(className =? x <||> title =? x <||> resource =? x) --> doShiftAndGo "3:Game"      | x <- my3Shifts]
-    , [(className =? x <||> title =? x <||> resource =? x) --> doShiftAndGo "4:Documents" | x <- my4Shifts]
-    , [(className =? x <||> title =? x <||> resource =? x) --> doShiftAndGo "5:Haskell"   | x <- my5Shifts]
-    , [(className =? x <||> title =? x <||> resource =? x) --> doShiftAndGo "6:Web"       | x <- my6Shifts]
-    , [(className =? x <||> title =? x <||> resource =? x) --> doShiftAndGo "7:Chat"      | x <- my7Shifts]
-    , [(className =? x <||> title =? x <||> resource =? x) --> doShiftAndGo "8:Player"    | x <- my8Shifts]
-    , [(className =? x <||> title =? x <||> resource =? x) --> doShiftAndGo "9:Inkscape"  | x <- my9Shifts]
-    ]
-    where
-    doShiftAndGo = doF . liftM2 (.) W.greedyView W.shift
-    myCFloats = ["Plasma-desktop", "Plasma", "plasma-desktop", "oblogout", "kmix"]
-    myTFloats = ["Downloads", "cairo-dock-unity-bridge", "Save As...","power-hs", "Diálogo de progreso", "Openbox Logout", "kmix"]
-    myRFloats = []
-    myIgnores = []
-    my1Shifts = [myTerminal]
-    my2Shifts = ["dolphin", "ranger"]
-    my3Shifts = []
-    my4Shifts = []
-    my5Shifts = ["qvim", "kate", "geany","SublimeText"]
-    my6Shifts = ["chromium-browser", "rekonq","chrome-stable-25.0.1364.160-1"]
-    my7Shifts = ["emphaty","quassel", "thunderbird"]
-    my8Shifts = ["clementine"]
-    my9Shifts = ["inkscape"]
- 
--- dynamicLog pretty printer for dzen:
-myDzenPP h = defaultPP
-    { ppCurrent = wrap ("^fg(" ++ myUrgentFGColor ++ ")^bg(" ++ myFocusedBGColor ++ ")^p()^i(" ++ myIconDir ++ "/arch_10x10.xbm)^fg(" ++ myNormalFGColor ++ ")") "^fg()^bg()^p()" . \wsId -> dropIx wsId
-    , ppVisible = wrap ("^fg(" ++ myNormalFGColor ++ ")^bg(" ++ myFocusedBGColor ++ ")^p()^i(" ++ myIconDir ++ "/arch_10x10.xbm)^fg(" ++ myNormalFGColor ++ ")") "^fg()^bg()^p()" . \wsId -> dropIx wsId
-    , ppHidden = wrap ("^i(" ++ myIconDir ++ "/arch_10x10.xbm)") "^fg()^bg()^p()" . \wsId -> if (':' `elem` wsId) then drop 2 wsId else wsId -- don't use ^fg() here!!
-    , ppHiddenNoWindows = \wsId -> if wsId `notElem` staticWs then "" else wrap ("^fg(" ++ myDzenFGColor ++ ")^bg()^p()^i(" ++ myIconDir ++ "/arch_10x10.xbm)") "^fg()^bg()^p()" . dropIx $ wsId
-    , ppUrgent = wrap ("^fg(" ++ myUrgentFGColor ++ ")^bg(" ++ myNormalBGColor ++ ")^p()^i(" ++ myIconDir ++ "/arch_10x10.xbm)^fg(" ++ myUrgentFGColor ++ ")") "^fg()^bg()^p()" . \wsId -> dropIx wsId
-    , ppSep = "|"
-    , ppWsSep = "|"
-    , ppTitle = dzenColor "#00aa4a" "" . wrap ">>=" "=<<"
-    , ppLayout = dzenColor ("" ++ myNormalFGColor ++ "") "" .
-        (\x -> case x of
-        "Minimize Full" -> "^fg(" ++ myUrgentFGColor ++ ")^i(" ++ myIconDir ++ "/stop.xbm)"
-        "Minimize Mirror ResizableTall" -> "^fg(" ++ myUrgentFGColor ++ ")^i(" ++ myIconDir ++ "/fs_01.xbm)"
-        "Minimize Tabbed Simplest" -> "^fg(" ++ myUrgentFGColor ++ ")^i(" ++ myIconDir ++ "/pacman.xbm)"
-        "Minimize Magnifier ResizableTall" -> "^fg(" ++ myUrgentFGColor ++ ")^i(" ++ myIconDir ++ "/mem.xbm)"
-        "Minimize layoutN Tabbed Simplest layoutAll Tabbed Simplest" -> "^fg(" ++ myUrgentFGColor ++ ")^i(" ++ myIconDir ++ "/pause.xbm)"
-        "Minimize Grid" -> "^fg(" ++ myUrgentFGColor ++ ")^i(" ++ myIconDir ++ "/shroom.xbm)"
-        _ -> x
-        )
-    , ppOutput = hPutStrLn h
-    }
-    where
-    dropIx wsId = if ':' `elem` wsId then drop 2 wsId else wsId
-    staticWs = ["5:Haskell"]
+myManageHook :: ManageHook
+myManageHook = composeAll . concat $
+             [ [isDialog --> doFloat]
+             , [resource =? i --> doIgnore    | i <- myIgnores]]
+             ++ [inWorksp doShiftAndGo w s    | w <- myWorkspaces | s <- myShifts ]
+             ++ [inWorksp (const doFloat) () s | s <- myShifts]
+
+         where doShiftAndGo = doF . liftM2 (.) W.greedyView W.shift
+               inWorksp d w s = [(className =? x <||> title =? x <||> resource =? x) --> (d w) | x <- s]
+               myShifts = [my1Shifts, my2Shifts, my3Shifts, my4Shifts, my5Shifts, my6Shifts, my7Shifts, my8Shifts, my9Shifts]
+               myFloats = ["Plasma-desktop", "Plasma", "plasma-desktop", "oblogout", "kmix", "Downloads", "cairo-dock-unity-bridge", "Save As...","power-hs", "Diálogo de progreso", "Openbox Logout", "kmix"]
+               myIgnores = []
+               my1Shifts = [myTerminal]
+               my2Shifts = ["dolphin", "ranger"]
+               my3Shifts = []
+               my4Shifts = []
+               my5Shifts = ["qvim", "kate", "geany","SublimeText"]
+               my6Shifts = ["chromium-browser", "rekonq","chrome-stable-25.0.1364.160-1"]
+               my7Shifts = ["emphaty","quassel", "thunderbird"]
+               my8Shifts = ["clementine"]
+               my9Shifts = ["inkscape"]
 
 configFile =  M.fromList $
       [ ((0, xK_x), spawn $ myEditor ++ "/home/elediaz/.xmonad/xmonad.hs")
@@ -328,11 +241,6 @@ numKeys =
     , xK_1, xK_2, xK_3
   ]
 
--- Here, some magic occurs that I once grokked but has since
--- fallen out of my head. Essentially what is happening is
--- that we are telling xmonad how to navigate workspaces,
--- how to send windows to different workspaces,
--- and what keys to use to change which monitor is focused.
 myKeys = myKeyBindings ++
   [
     ((m .|. myModMask, k), windows $ f i)
