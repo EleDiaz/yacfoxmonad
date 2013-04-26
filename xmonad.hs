@@ -80,9 +80,9 @@ myUrgentBGColor = "#0077ff"
  
 myWorkspaces =
   [
-    "7:Chat", "8:Player", "9:Inkscape",
+    "1:Terminal", "2:Explore", "3:Game",
     "4:Documents", "5:Haskell", "6:Web",
-    "1:Terminal", "2:Explore", "3:Game"
+    "7:Chat", "8:Player", "9:Inkscape"
   ]
 
 myNormalBorderColor = "#0f0f0f"
@@ -102,8 +102,10 @@ myStartupHook = do
         spawn "~/.xmonad/startup-hook"
 
 ppTaff :: PP 
-ppTaff = defaultPP { ppHiddenNoWindows = taffybarEscape . const ""-- (\wsId -> if wsId == "5:Haskell" then "" else wsId)
-                   , ppLayout = taffybarColor "red" "" .
+ppTaff = taffybarPP { ppHiddenNoWindows = taffybarEscape . const ""-- (\wsId -> if wsId == "5:Haskell" then "" else wsId)
+                    , ppHidden = taffybarEscape . const ""
+                    , ppOrder = (\(ws:l:t:xs) -> [l, ws, t])
+                    , ppLayout = taffybarColor "red" "" .
                         (\x -> case x of
                             "Minimize Full"                                              -> "|Full|"
                             "Minimize Mirror ResizableTall"                              -> "|Mirr|"
@@ -157,7 +159,7 @@ myManageHook = composeAll . concat $
              [ [isDialog --> doFloat]
              , [resource =? i --> doIgnore    | i <- myIgnores]]
              ++ [inWorksp doShiftAndGo w s    | w <- myWorkspaces | s <- myShifts ]
-             ++ [inWorksp (const doFloat) () s | s <- myShifts]
+             ++ [inWorksp (const doFloat) () myFloats]
 
          where doShiftAndGo = doF . liftM2 (.) W.greedyView W.shift
                inWorksp d w s = [(className =? x <||> title =? x <||> resource =? x) --> (d w) | x <- s]
@@ -229,16 +231,16 @@ myKeyBindings =
 -- TECLADO NUMERICO
 numPadKeys =
   [
-    xK_KP_Home, xK_KP_Up, xK_KP_Page_Up
+    xK_KP_End, xK_KP_Down, xK_KP_Page_Down
     , xK_KP_Left, xK_KP_Begin,xK_KP_Right
-    , xK_KP_End, xK_KP_Down, xK_KP_Page_Down
+    , xK_KP_Home, xK_KP_Up, xK_KP_Page_Up
   ]
 
 numKeys =
   [
-    xK_7, xK_8, xK_9
+    xK_1, xK_2, xK_3
     , xK_4, xK_5, xK_6
-    , xK_1, xK_2, xK_3
+    , xK_7, xK_8, xK_9
   ]
 
 myKeys = myKeyBindings ++
