@@ -1,7 +1,9 @@
-dist
-cabal-dev
-*.o
-*.hi
-*.chi
-*.chs.h
-.virthualenv
+xmonad.errors
+xmonad.hi
+xmonad.o
+xmonad-x86_64-linux
+*.swp
+xmonad.hs~
+other/
+images/
+log.txt
