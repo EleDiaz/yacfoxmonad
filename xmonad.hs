@@ -38,6 +38,8 @@ import XMonad.Prompt
 import XMonad.Prompt.XMonad
 import XMonad.Prompt.Man
 
+import XMonad.Util.Scratchpad (scratchpadManageHook, scratchpadSpawnActionCustom)
+import XMonad.Util.NamedScratchpad
 import XMonad.Util.Run
 import XMonad.Util.EZConfig
 
@@ -48,42 +50,63 @@ import System.Taffybar.Hooks.PagerHints (pagerHints)
 
 import Control.Monad (liftM2)
 import Data.Monoid
+import Data.List
 import XMonad.Config.Gnome
 import qualified XMonad.StackSet as W
---import Data.Map 
+--import Data.Map
 
 -- xmonad:
 main :: IO ()
 main = do
   client <- connectSession -- taffybar and dbus
   taff <- spawnPipe "~/.cabal/bin/taffybar"
+  myStatus <- spawnPipe myTopStatusBar
   -- c1 <- spawnPipe "conky -c ~/.conky/.conkyrcmiui"
   -- c2 <- spawnPipe "conky -c ~/.conky/conky-calendar"
   -- c3 <- spawnPipe "conky -c ~/.conky/infoconky"
-  xmonad $ ewmh $ pagerHints $ gnomeConfig 
+  xmonad $ ewmh $ myUrgencyHook $ defaultConfig
     { terminal           = myTerminal
     , focusFollowsMouse  = False
-    , borderWidth        = myBorderWidth
+    , borderWidth        = 0
     , modMask            = myModMask
     , workspaces         = myWorkspaces
     , normalBorderColor  = myNormalBorderColor
     , focusedBorderColor = myFocusedBorderColor
- 
+    , logHook            = (myLogHook myStatus) <+> ewmhDesktopsLogHook >> setWMName "LG3D" <+> dbusLogWithPP client ppTaff
     , layoutHook         = myLayouts
-    , manageHook         = myManageHook <+> manageDocks <+> dynamicMasterHook <+> toggleHook "float" doFloat <+> manageHook gnomeConfig
+    , manageHook         = myManageHook <+> manageDocks <+> dynamicMasterHook <+> toggleHook "float" doFloat -- <+> manageHook gnomeConfig
     , handleEventHook    = myHandleEventHook
-    , logHook            = fadeWindowsLogHook myFadeHook <+> dbusLogWithPP client ppTaff <+> logHook gnomeConfig
+    ---, logHook            = fadeWindowsLogHook myFadeHook <+> logHook gnomeConfig <+> dbusLogWithPP client ppTaff
     , startupHook        = myStartupHook
     }
       `additionalKeys` myKeys
 
+-- Colors and fonts
+myFont               = "Monaco:size=12"
+dzenFont             = "AvantGarde LT Medium:size=10"
+colorBlack           = "#1a1a1a" --Background (Dzen_BG)
+colorBlackAlt        = "#404040" --Black Xdefaults
+colorGray            = "#444444" --Gray       (Dzen_FG2)
+colorGrayAlt         = "#161616" --Gray dark
+colorWhite           = "#808080" --Foreground (Shell_FG)
+colorWhiteAlt        = "#9d9d9d" --White dark (Dzen_FG)
+colorMagenta         = "#8e82a2"
+colorBlue            = "#87afd7"
+colorYellow          = "#ffaf5f"
+colorRed             = "#d75f5f"
+colorGreen           = "#87af5f"
+myArrow              = "^fg(" ++ colorWhiteAlt ++ ")>^fg(" ++ colorBlue ++ ")>^fg(" ++ colorGray ++ ")>"
+myNormalBorderColor  = "#222222"
+myFocusedBorderColor = "#d75f5f"
+
+
+myTopStatusBar    = "dzen2 -x '0' -y '0' -h '20' -w '1366' -ta 'l' -fg '" ++ colorWhiteAlt ++ "' -bg '" ++ colorBlack ++ "' -fn '" ++ dzenFont ++ "' -p -e ''"
 myTerminal, myEditor :: String
 myTerminal = "terminator"
 myEditor = "emacs24"
-myBorderWidth = 0
 myModMask = mod4Mask
 -- Color, font and iconpath definitions:
-myFont = "xft:terminus:size=10"
+--myFont = "xft:terminus:size=10"
 myNormalFGColor = "#ffffff"
 myNormalBGColor = "#0f0f0f"
 myFocusedFGColor = "#f0f0f0"
@@ -100,9 +123,9 @@ myWorkspaces =
     "Chat", "Play", "Inks"
   ]
 
-myNormalBorderColor = "#0f0f0f"
-myFocusedBorderColor = "#1f1f1f"
- 
+--myNormalBorderColor = "#0f0f0f"
+--myFocusedBorderColor = "#1f1f1f"
+
 startupWorkspace = "Hask"
 
 myHandleEventHook = fullscreenEventHook <+> docksEventHook <+> minimizeEventHook <+> handleEventHook gnomeConfig
@@ -110,19 +133,54 @@ myHandleEventHook = fullscreenEventHook <+> docksEventHook <+> minimizeEventHook
 myFadeHook = composeAll [  opaque ,isUnfocused --> opacity 0.75
                            , className =? "mplayer2"  --> opaque
                         ]
-myEventHook = mempty
 myStartupHook = do
         setWMName "LG3D"
-        startupHook gnomeConfig
+        startupHook defaultConfig
         windows $ W.greedyView startupWorkspace
         spawn "/home/elediaz/.xmonad/startup-hook"
 
-ppTaff :: PP 
+myUrgencyHook = withUrgencyHook dzenUrgencyHook
+    { args = ["-fn", dzenFont, "-bg", colorBlack, "-fg", colorGreen] }
+
+
+--myLogHook :: Handle -> X ()
+myLogHook h = dynamicLogWithPP $ defaultPP
+    { ppOutput          = hPutStrLn h
+    , ppSort            = fmap (namedScratchpadFilterOutWorkspace.) (ppSort defaultPP) -- hide "NSP" from workspace list
+    , ppOrder           = orderText
+    , ppExtras          = []
+    , ppSep             = "^fg(" ++ colorGray ++ ")|"
+    , ppWsSep           = ""
+    , ppCurrent         = dzenColor colorYellow     colorBlack . pad
+    , ppUrgent          = dzenColor colorGreen    colorBlack . pad . wrapClickWorkSpace . (\a -> (a,a))
+    , ppVisible         = dzenColor colorGray     colorBlack . pad . wrapClickWorkSpace . (\a -> (a,a))
+    , ppHidden          = dzenColor colorWhiteAlt colorBlack . pad . wrapClickWorkSpace . (\a -> (a,a))
+    , ppHiddenNoWindows = dzenColor colorGray     colorBlack . pad . wrapClickWorkSpace . (\a -> (a,a))
+    , ppLayout          = const ""
+    , ppTitle           = dzenColor colorWhiteAlt colorBlack . pad . wrapClickTitle . titleText 
+. dzenEscape
+    }
+    where
+        --display config
+        orderText (ws:l:t:_) = [ws,l,t]
+        titleText [] = "Desktop " ++ myArrow
+        titleText x = (shorten 82 x) ++ " " ++ myArrow
+        wrapClickLayout content = "^ca(1,xdotool key super+space)" ++ content ++ "^ca()"                                                           --clickable layout
+        wrapClickTitle content = "^ca(1,xdotool key super+j)" ++ content ++ "^ca()"                                                                --clickable title
+        wrapClickWorkSpace (idx,str) = "^ca(1," ++ xdo "w;" ++ xdo index ++ ")" ++ "^ca(3," ++ xdo "e;" ++ xdo index ++ ")" ++ str ++ "^ca()^ca()" --clickable workspaces
+            where
+                wsIdxToString Nothing = "1"
+                wsIdxToString (Just n) = show (n+1)
+                index = wsIdxToString (elemIndex idx myWorkspaces)
+                xdo key = "xdotool key super+" ++ key
+
+
+ppTaff :: PP
 ppTaff = taffybarPP { ppHiddenNoWindows = taffybarEscape . const ""-- (\wsId -> if wsId == "5:Haskell" then "" else wsId)
                     , ppHidden = taffybarEscape . const ""
-                    , ppTitle = taffybarEscape . const ""
+                    , ppTitle = taffybarEscape
                     , ppCurrent = taffybarColor "Black" ""
-                    , ppOrder = (\(ws:l:t:xs) -> [l, ws, t])
+                    , ppOrder = (\(ws:l:t:xs) -> [l])
                     , ppLayout = taffybarColor "red" "" . id
                     }
 
@@ -134,7 +192,7 @@ myGSConfig = defaultGSConfig
     , gs_cellpadding = 10
     , gs_font = "" ++ myFont ++ ""
     }
- 
+
 -- XPConfig options:
 myXPConfig = defaultXPConfig
     { font = "" ++ myFont ++ ""
@@ -148,45 +206,47 @@ myXPConfig = defaultXPConfig
     , height = 30
     , historySize = 100
     }
- 
+
 --myLayouts =
 -- onWorkspace "Chat" chatLayout
 -- $ defaultLayouts
 --chatLayout = avoidStruts(withIM (1%7) (Title myIMRosterTitle) Grid)
 -- Mis Layouts
 
-myLayouts = named "Grid"      ( avoidStruts $ Grid )
-	||| named "Full"      ( avoidStruts $ Full )
-        ||| named "Builder"   (avoidStruts $ minimize (((layoutN 1 (relBox 0 0 0.5 1) (Just $ relBox 0 0 1 1) $ simpleTabbed) 
+myLayouts = named "Grid"      ( avoidStruts $ minimize Grid )
+	||| named "Full"      ( avoidStruts $ minimize Full )
+        ||| named "Builder"   (avoidStruts $ minimize (((layoutN 1 (relBox 0 0 0.5 1) (Just $ relBox 0 0 1 1) $ simpleTabbed)
                                (layoutAll (relBox 0.5 0 1 1) simpleTabbed))))
-        ||| named "Magnifier" (magnifier (ResizableTall 1 (3/100) (1/2) []))
-        ||| named "Float"     (floatingDeco $ borderResize $ positionStoreFloat)
+        ||| named "Magnifier" (minimize $ magnifier (ResizableTall 1 (3/100) (1/2) []))
+        ||| named "Float"     (minimize $ floatingDeco $ borderResize $ positionStoreFloat)
         where named x = renamed [Replace x]
               floatingDeco = noFrillsDeco shrinkText defaultTheme
         ---  ||| Mirror (ResizableTall 1 (3/100) (1/2) []))
 
- 
+-- Scratchpad (W+º)
+manageScratchPad :: ManageHook
+manageScratchPad = scratchpadManageHook (W.RationalRect (0) (1/50) (1) (3/4))
+scratchPad = scratchpadSpawnActionCustom "gnome-terminal"
+
+
 -- Window rules:
 myManageHook :: ManageHook
-myManageHook = composeAll . concat $
+myManageHook = (composeAll . concat $
              [ [isDialog --> doFloat]
              , [resource =? i --> doIgnore    | i <- myIgnores]]
              ++ [inWorksp doShiftAndGo w s    | w <- myWorkspaces | s <- myShifts ]
-             ++ [inWorksp (const doFloat) () myFloats]
+             ++ [inWorksp (const doFloat) () myFloats]) <+> manageScratchPad
 
          where doShiftAndGo = doF . liftM2 (.) W.greedyView W.shift
                inWorksp d w s = [(className =? x <||> title =? x <||> resource =? x) --> (d w) | x <- s]
                myShifts = [[], [], [], my1Shifts, my2Shifts, my3Shifts, my4Shifts, my5Shifts, my6Shifts, my7Shifts, my8Shifts, my9Shifts]
-               myFloats = ["unity-2d-panel", "Downloads", "Save As...", 
-                           "Diálogo de progreso", "Notas adhesivas", "Guake", "guake.py",
-                           "wrapper", "xfrun4", "xfce4-settings-manager"
-                          ]
+               myFloats = ["Notas adhesivas", "Guake", "guake.py", "Escritorio"]
                myIgnores = []
                my1Shifts = [myTerminal]
-               my2Shifts = ["nautilus", "ranger"]
+               my2Shifts = ["nautilus", "ranger", "dolphin"]
                my3Shifts = []
                my4Shifts = ["evince"]
-               my5Shifts = ["qvim", "gedit", "emacs24","SublimeText"]
+               my5Shifts = ["gedit", "emacs24","SublimeText", "yi", "gvim", "leksah"]
                my6Shifts = ["chromium-browser"]
                my7Shifts = ["emphaty","quassel", "thunderbird"]
                my8Shifts = ["clementine"]
@@ -220,22 +280,22 @@ myKeyBindings =
     --, ((myModMask .|. shiftMask, xK_g), gridselectWorkspace myGSConfig (\ws -> W.greedyView ws . W.shift ws)) -- display grid select and go to selected workspace
     , ((myModMask, xK_g), goToSelected myGSConfig) -- display grid select and go to selected window
     , ((myModMask .|. shiftMask, xK_Tab), windows W.focusUp) -- move focus to the previous window
-    , ((myModMask, xK_r), spawn "taffybar") -- innecesario
     , ((myModMask, xK_q), spawn "killall dzen2 ; killall conky ; killall tint2 ; killall taffybar-linux-x86_64; xmonad --recompile && xmonad --restart")
-    --, ((myModMask, xK_f), spawn "krunner")
+    , ((myModMask, xK_y), scratchPad)
     , ((mod4Mask, xK_Print), spawn "scrot screen_%Y-%m-%d.png -d 1") -- take screenshot
     , ((myModMask, xK_f), spawn "synapse")
     , ((myModMask, xK_x), xmonadPrompt myXPConfig)
     , ((myModMask, xK_F1), manPrompt myXPConfig)
     --, ((myModMask, xK_s), SM.submap $ searchEngineMap $ S.promptSearch defaultXPConfig)
-    --, ((myModMask .|. shiftMask, xK_s), SM.submap $ searchEngineMap $ S.selectSearch) -- busca el texto selecionado 
-    --, ((myModMask .|. shiftMask, xK_e), SM.submap $ configFile)  
+    --, ((myModMask .|. shiftMask, xK_s), SM.submap $ searchEngineMap $ S.selectSearch) -- busca el texto selecionado
+    --, ((myModMask .|. shiftMask, xK_e), SM.submap $ configFile)
     , ((myModMask, xK_e), toggleHookNext "float")
     , ((myModMask, xK_r), toggleHookAllNew "float")
     , ((myModMask, xK_t), withFocused $ windows . W.sink)
     , ((myModMask, xK_w), spawn "oblogout")
-    , ((mod4Mask, xK_i), spawn "inkscape")
-    , ((myModMask, xK_c), spawn "chromium-browser") 
+    , ((myModMask, xK_i), spawn "inkscape")
+    , ((myModMask, xK_c), spawn "chromium-browser")
+    , ((myModMask, xK_n), spawn "nautilus")
     , ((myModMask, xK_u), focusUrgent) -- ???
     --, ((0, 0x1008FF12), spawn "amixer -q set Master toggle")
     --, ((0, 0x1008FF11), spawn "amixer -q set Master 1%-")
