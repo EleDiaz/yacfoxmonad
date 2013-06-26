@@ -4,12 +4,17 @@
 ------------------------------------------------------------------------
 
 import XMonad -- hiding (Tall)
-import XMonad.Hooks.EwmhDesktops hiding (fullscreenEventHook)
+--------------------------------------------------------------------------------
+-- Actions imports
+--------------------------------------------------------------------------------
 import XMonad.Actions.GridSelect
 import XMonad.Actions.Plane
 --import qualified XMonad.Actions.Submap as SM
 --import qualified XMonad.Actions.Search as S
-
+--------------------------------------------------------------------------------
+-- Hooks imports
+--------------------------------------------------------------------------------
+import XMonad.Hooks.EwmhDesktops hiding (fullscreenEventHook)
 import XMonad.Hooks.DynamicHooks
 import XMonad.Hooks.DynamicLog
 import XMonad.Hooks.ManageDocks
@@ -19,7 +24,9 @@ import XMonad.Hooks.UrgencyHook
 import XMonad.Hooks.SetWMName
 import XMonad.Hooks.Minimize
 import XMonad.Hooks.ToggleHook
-
+--------------------------------------------------------------------------------
+-- Layout imports
+--------------------------------------------------------------------------------
 import XMonad.Layout.Renamed
 import XMonad.Layout.Minimize
 import XMonad.Layout.Grid
@@ -32,39 +39,44 @@ import XMonad.Layout.Tabbed
 import XMonad.Layout.PositionStoreFloat
 import XMonad.Layout.NoFrillsDecoration
 import XMonad.Layout.BorderResize
-
+--------------------------------------------------------------------------------
+-- Others from Xmonad
+--------------------------------------------------------------------------------
 -- import XMonad.Prompt.Shell
 import XMonad.Prompt
 import XMonad.Prompt.XMonad
 import XMonad.Prompt.Man
 
-import XMonad.Util.Scratchpad (scratchpadManageHook, scratchpadSpawnActionCustom)
-import XMonad.Util.NamedScratchpad
 import XMonad.Util.Run
 import XMonad.Util.EZConfig
-
+import XMonad.Util.SpawnOnce
+import qualified XMonad.StackSet as W
+--------------------------------------------------------------------------------
+-- Taffybar imports
+--------------------------------------------------------------------------------
 import DBus.Client
 
 import System.Taffybar.XMonadLog
 import System.Taffybar.Hooks.PagerHints (pagerHints)
-
+--------------------------------------------------------------------------------
+-- Others
+--------------------------------------------------------------------------------
 import Control.Monad (liftM2)
 import Data.Monoid
 import Data.List
-import XMonad.Config.Gnome
-import qualified XMonad.StackSet as W
---import Data.Map
+--import Network.SimpleIRC -- Add a manager IRC to xmonad
 
--- xmonad:
+
+--------------------------------------------------------------------------------
+-- Main Xmonad
+--------------------------------------------------------------------------------
 main :: IO ()
 main = do
   client <- connectSession -- taffybar and dbus
   taff <- spawnPipe "~/.cabal/bin/taffybar"
   myStatus <- spawnPipe myTopStatusBar
-  -- c1 <- spawnPipe "conky -c ~/.conky/.conkyrcmiui"
-  -- c2 <- spawnPipe "conky -c ~/.conky/conky-calendar"
-  -- c3 <- spawnPipe "conky -c ~/.conky/infoconky"
-  xmonad $ ewmh $ myUrgencyHook $ defaultConfig
+
+  xmonad $ myUrgencyHook $ ewmh $ defaultConfig
     { terminal           = myTerminal
     , focusFollowsMouse  = False
     , borderWidth        = 0
@@ -72,47 +84,18 @@ main = do
     , workspaces         = myWorkspaces
     , normalBorderColor  = myNormalBorderColor
     , focusedBorderColor = myFocusedBorderColor
-    , logHook            = (myLogHook myStatus) <+> ewmhDesktopsLogHook >> setWMName "LG3D" <+> dbusLogWithPP client ppTaff
+    , logHook            = fadeWindowsLogHook myFadeHook <+> (myLogHook myStatus) <+> ewmhDesktopsLogHook >> setWMName "LG3D" <+> dbusLogWithPP client ppTaff
     , layoutHook         = myLayouts
-    , manageHook         = myManageHook <+> manageDocks <+> dynamicMasterHook <+> toggleHook "float" doFloat -- <+> manageHook gnomeConfig
+    , manageHook         = myManageHook <+> manageDocks <+> dynamicMasterHook <+> toggleHook "float" doFloat
     , handleEventHook    = myHandleEventHook
-    ---, logHook            = fadeWindowsLogHook myFadeHook <+> logHook gnomeConfig <+> dbusLogWithPP client ppTaff
     , startupHook        = myStartupHook
     }
       `additionalKeys` myKeys
 
--- Colors and fonts
-myFont               = "Monaco:size=12"
-dzenFont             = "AvantGarde LT Medium:size=10"
-colorBlack           = "#1a1a1a" --Background (Dzen_BG)
-colorBlackAlt        = "#404040" --Black Xdefaults
-colorGray            = "#444444" --Gray       (Dzen_FG2)
-colorGrayAlt         = "#161616" --Gray dark
-colorWhite           = "#808080" --Foreground (Shell_FG)
-colorWhiteAlt        = "#9d9d9d" --White dark (Dzen_FG)
-colorMagenta         = "#8e82a2"
-colorBlue            = "#87afd7"
-colorYellow          = "#ffaf5f"
-colorRed             = "#d75f5f"
-colorGreen           = "#87af5f"
-myArrow              = "^fg(" ++ colorWhiteAlt ++ ")>^fg(" ++ colorBlue ++ ")>^fg(" ++ colorGray ++ ")>"
-myNormalBorderColor  = "#222222"
-myFocusedBorderColor = "#d75f5f"
-
-
-myTopStatusBar    = "dzen2 -x '0' -y '0' -h '20' -w '1366' -ta 'l' -fg '" ++ colorWhiteAlt ++ "' -bg '" ++ colorBlack ++ "' -fn '" ++ dzenFont ++ "' -p -e ''"
 myTerminal, myEditor :: String
 myTerminal = "terminator"
-myEditor = "emacs24"
+myEditor = "terminator -e yi"
 myModMask = mod4Mask
--- Color, font and iconpath definitions:
---myFont = "xft:terminus:size=10"
-myNormalFGColor = "#ffffff"
-myNormalBGColor = "#0f0f0f"
-myFocusedFGColor = "#f0f0f0"
-myFocusedBGColor = "#333333"
-myUrgentFGColor = "#0099ff"
-myUrgentBGColor = "#0077ff"
 
 myWorkspaces :: [String]
 myWorkspaces =
@@ -123,12 +106,12 @@ myWorkspaces =
     "Chat", "Play", "Inks"
   ]
 
---myNormalBorderColor = "#0f0f0f"
---myFocusedBorderColor = "#1f1f1f"
 
 startupWorkspace = "Hask"
 
-myHandleEventHook = fullscreenEventHook <+> docksEventHook <+> minimizeEventHook <+> handleEventHook gnomeConfig
+myTopStatusBar    = "dzen2 -x '0' -y '0' -h '20' -w '1366' -ta 'l' -fg '" ++ colorWhiteAlt ++ "' -bg '" ++ colorBlack ++ "' -fn '" ++ dzenFont ++ "' -p -e ''"
+
+myHandleEventHook = fullscreenEventHook <+> docksEventHook <+> minimizeEventHook 
 
 myFadeHook = composeAll [  opaque ,isUnfocused --> opacity 0.75
                            , className =? "mplayer2"  --> opaque
@@ -136,8 +119,21 @@ myFadeHook = composeAll [  opaque ,isUnfocused --> opacity 0.75
 myStartupHook = do
         setWMName "LG3D"
         startupHook defaultConfig
+        spawnOnce myAppOnStartup
         windows $ W.greedyView startupWorkspace
-        spawn "/home/elediaz/.xmonad/startup-hook"
+        
+myAppOnStartup = (flip (++)) "&" . intercalate " &\n" $
+      [ "xcompmgr",
+        "clementine",
+        "nm-applet",
+        "guake",
+        "synapse",
+        "nautilus -n",
+        "gnome-sound-applet",
+        "/usr/bin/gnome-keyring-daemon --start --components=ssh,secrets,gpg,pkcs11",
+        "/usr/libexec/gnome-settings-daemon"
+        -- "taffybar -c=configfile -- TODO
+      ] 
 
 myUrgencyHook = withUrgencyHook dzenUrgencyHook
     { args = ["-fn", dzenFont, "-bg", colorBlack, "-fg", colorGreen] }
@@ -146,7 +142,7 @@ myUrgencyHook = withUrgencyHook dzenUrgencyHook
 --myLogHook :: Handle -> X ()
 myLogHook h = dynamicLogWithPP $ defaultPP
     { ppOutput          = hPutStrLn h
-    , ppSort            = fmap (namedScratchpadFilterOutWorkspace.) (ppSort defaultPP) -- hide "NSP" from workspace list
+    --, ppSort            = ppSort defaultPP) -- hide "NSP" from workspace list
     , ppOrder           = orderText
     , ppExtras          = []
     , ppSep             = "^fg(" ++ colorGray ++ ")|"
@@ -157,14 +153,14 @@ myLogHook h = dynamicLogWithPP $ defaultPP
     , ppHidden          = dzenColor colorWhiteAlt colorBlack . pad . wrapClickWorkSpace . (\a -> (a,a))
     , ppHiddenNoWindows = dzenColor colorGray     colorBlack . pad . wrapClickWorkSpace . (\a -> (a,a))
     , ppLayout          = const ""
-    , ppTitle           = dzenColor colorWhiteAlt colorBlack . pad . wrapClickTitle . titleText 
+    , ppTitle           = dzenColor colorWhiteAlt colorBlack . pad . wrapClickTitle . titleText
 . dzenEscape
     }
     where
         --display config
         orderText (ws:l:t:_) = [ws,l,t]
         titleText [] = "Desktop " ++ myArrow
-        titleText x = (shorten 82 x) ++ " " ++ myArrow
+        titleText x = (shorten 60 x) ++ " " ++ myArrow
         wrapClickLayout content = "^ca(1,xdotool key super+space)" ++ content ++ "^ca()"                                                           --clickable layout
         wrapClickTitle content = "^ca(1,xdotool key super+j)" ++ content ++ "^ca()"                                                                --clickable title
         wrapClickWorkSpace (idx,str) = "^ca(1," ++ xdo "w;" ++ xdo index ++ ")" ++ "^ca(3," ++ xdo "e;" ++ xdo index ++ ")" ++ str ++ "^ca()^ca()" --clickable workspaces
@@ -184,34 +180,39 @@ ppTaff = taffybarPP { ppHiddenNoWindows = taffybarEscape . const ""-- (\wsId -> 
                     , ppLayout = taffybarColor "red" "" . id
                     }
 
+--------------------------------------------------------------------------------
+-- Colors and Fonts
+--------------------------------------------------------------------------------
+dzenFont             = "DejaVu Sans Mono:size=12"
+myFont               = "-misc-fixed-*-*-*-*-10-*-*-*-*-*-*-*"
+colorBlack           = "#1a1a1a" --Background (Dzen_BG)
+colorBlackAlt        = "#404040" --Black Xdefaults
+colorGray            = "#444444" --Gray       (Dzen_FG2)
+colorGrayAlt         = "#161616" --Gray dark
+colorWhite           = "#ffffff" --Foreground (Shell_FG)
+colorWhiteAlt        = "#9d9d9d" --White dark (Dzen_FG)
+colorMagenta         = "#8e82a2"
+colorBlue            = "#87afd7"
+colorYellow          = "#ffaf5f"
+colorRed             = "#d75f5f"
+colorGreen           = "#87af5f"
+myArrow              = "^fg(" ++ colorRed ++ ")>->"
+myNormalBorderColor  = "#222222"
+myFocusedBorderColor = "#d75f5f"
+myNormalFGColor = "#ffffff"
+myNormalBGColor = "#0f0f0f"
+myFocusedFGColor = "#f0f0f0"
+myFocusedBGColor = "#333333"
+myUrgentFGColor = "#0099ff"
+myUrgentBGColor = "#0077ff"
 
--- GSConfig options:
-myGSConfig = defaultGSConfig
-    { gs_cellheight = 50
-    , gs_cellwidth = 250
-    , gs_cellpadding = 10
-    , gs_font = "" ++ myFont ++ ""
-    }
-
--- XPConfig options:
-myXPConfig = defaultXPConfig
-    { font = "" ++ myFont ++ ""
-    , bgColor = "" ++ myNormalBGColor ++ ""
-    , fgColor = "" ++ myNormalFGColor ++ ""
-    , fgHLight = "" ++ myNormalFGColor ++ ""
-    , bgHLight = "" ++ myUrgentBGColor ++ ""
-    , borderColor = "" ++ myFocusedBorderColor ++ ""
-    , promptBorderWidth = 3
-    , position = Bottom
-    , height = 30
-    , historySize = 100
-    }
-
+--------------------------------------------------------------------------------
+-- Layouts
+--------------------------------------------------------------------------------
 --myLayouts =
 -- onWorkspace "Chat" chatLayout
 -- $ defaultLayouts
 --chatLayout = avoidStruts(withIM (1%7) (Title myIMRosterTitle) Grid)
--- Mis Layouts
 
 myLayouts = named "Grid"      ( avoidStruts $ minimize Grid )
 	||| named "Full"      ( avoidStruts $ minimize Full )
@@ -223,19 +224,14 @@ myLayouts = named "Grid"      ( avoidStruts $ minimize Grid )
               floatingDeco = noFrillsDeco shrinkText defaultTheme
         ---  ||| Mirror (ResizableTall 1 (3/100) (1/2) []))
 
--- Scratchpad (W+º)
-manageScratchPad :: ManageHook
-manageScratchPad = scratchpadManageHook (W.RationalRect (0) (1/50) (1) (3/4))
-scratchPad = scratchpadSpawnActionCustom "gnome-terminal"
-
 
 -- Window rules:
 myManageHook :: ManageHook
-myManageHook = (composeAll . concat $
+myManageHook = composeAll . concat $
              [ [isDialog --> doFloat]
              , [resource =? i --> doIgnore    | i <- myIgnores]]
              ++ [inWorksp doShiftAndGo w s    | w <- myWorkspaces | s <- myShifts ]
-             ++ [inWorksp (const doFloat) () myFloats]) <+> manageScratchPad
+             ++ [inWorksp (const doFloat) () myFloats]
 
          where doShiftAndGo = doF . liftM2 (.) W.greedyView W.shift
                inWorksp d w s = [(className =? x <||> title =? x <||> resource =? x) --> (d w) | x <- s]
@@ -251,6 +247,31 @@ myManageHook = (composeAll . concat $
                my7Shifts = ["emphaty","quassel", "thunderbird"]
                my8Shifts = ["clementine"]
                my9Shifts = ["inkscape"]
+
+--------------------------------------------------------------------------------
+-- Keybinding
+--------------------------------------------------------------------------------
+-- GSConfig options:
+myGSConfig = defaultGSConfig
+    { gs_cellheight = 50
+    , gs_cellwidth = 250
+    , gs_cellpadding = 10
+    --, gs_font = "" ++ myFont ++ ""
+    }
+
+-- XPConfig options:
+myXPConfig = defaultXPConfig
+    { bgColor = "" ++ myNormalBGColor ++ ""
+    , fgColor = "" ++ myNormalFGColor ++ ""
+    , fgHLight = "" ++ myNormalFGColor ++ ""
+    , bgHLight = "" ++ myUrgentBGColor ++ ""
+    , borderColor = "" ++ myFocusedBorderColor ++ ""
+    , promptBorderWidth = 3
+    , position = Top
+    , height = 30
+    , historySize = 30
+    }
+
 {-
 configFile =  fromList $
       [ ((0, xK_x), spawn $ myEditor ++ "/home/elediaz/.xmonad/xmonad.hs")
@@ -279,9 +300,7 @@ myKeyBindings =
     , ((myModMask .|. controlMask              , xK_m    ), sendMessage Toggle     ) -- End magnifique controls
     --, ((myModMask .|. shiftMask, xK_g), gridselectWorkspace myGSConfig (\ws -> W.greedyView ws . W.shift ws)) -- display grid select and go to selected workspace
     , ((myModMask, xK_g), goToSelected myGSConfig) -- display grid select and go to selected window
-    , ((myModMask .|. shiftMask, xK_Tab), windows W.focusUp) -- move focus to the previous window
     , ((myModMask, xK_q), spawn "killall dzen2 ; killall conky ; killall tint2 ; killall taffybar-linux-x86_64; xmonad --recompile && xmonad --restart")
-    , ((myModMask, xK_y), scratchPad)
     , ((mod4Mask, xK_Print), spawn "scrot screen_%Y-%m-%d.png -d 1") -- take screenshot
     , ((myModMask, xK_f), spawn "synapse")
     , ((myModMask, xK_x), xmonadPrompt myXPConfig)
@@ -296,10 +315,10 @@ myKeyBindings =
     , ((myModMask, xK_i), spawn "inkscape")
     , ((myModMask, xK_c), spawn "chromium-browser")
     , ((myModMask, xK_n), spawn "nautilus")
-    , ((myModMask, xK_u), focusUrgent) -- ???
-    --, ((0, 0x1008FF12), spawn "amixer -q set Master toggle")
-    --, ((0, 0x1008FF11), spawn "amixer -q set Master 1%-")
-    --, ((0, 0x1008FF13), spawn "amixer -q set Master 1%+")
+    , ((myModMask, xK_u), focusUrgent) -- me redirige al foco urgente
+    , ((0, 0x1008FF12), spawn "amixer -q set Master toggle")
+    , ((0, 0x1008FF11), spawn "amixer -q set Master 1%-")
+    , ((0, 0x1008FF13), spawn "amixer -q set Master 1%+")
   ]
 
 
