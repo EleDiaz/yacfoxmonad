@@ -28,20 +28,29 @@ import XMonad.Hooks.ToggleHook
 import XMonad.Layout.Renamed
 import XMonad.Layout.Minimize
 import XMonad.Layout.Grid
+-- import XMonad.Layout.Spacing 
+import XMonad.Layout.PerWorkspace 
+import XMonad.Layout.IM
+-- import XMonad.Layout.ComboP
+-- import XMonad.Layout.TwoPane
 import XMonad.Layout.ResizableTile
 import XMonad.Layout.Fullscreen
-import XMonad.Layout.LayoutBuilder -- construye contenedores
+-- import XMonad.Layout.LayoutBuilder -- construye contenedores
 import XMonad.Layout.Magnifier -- incrementa la ventana enfocada
 import XMonad.Layout.Tabbed
 import XMonad.Layout.PositionStoreFloat
 import XMonad.Layout.NoFrillsDecoration
 import XMonad.Layout.BorderResize
+import XMonad.Layout.ShowWName
+import XMonad.Layout.FixedColumn
+import XMonad.Layout.WorkspaceDir
 --------------------------------------------------------------------------------
 -- Others from Xmonad
 --------------------------------------------------------------------------------
 -- import XMonad.Prompt.Shell
 import XMonad.Prompt
-import XMonad.Prompt.XMonad
+import XMonad.Prompt.RunOrRaise
+import XMonad.Prompt.Layout
 
 import XMonad.Util.Run
 import XMonad.Util.EZConfig
@@ -52,13 +61,18 @@ import qualified XMonad.StackSet as W
 --------------------------------------------------------------------------------
 import Control.Monad (liftM2)
 import Data.List
+import DBus.Client
+import System.Taffybar.XMonadLog ( dbusLog )
 
 --------------------------------------------------------------------------------
 -- Main Xmonad
 --------------------------------------------------------------------------------
 main :: IO ()
 main = do
-  _ <- spawnPipe "~/.cabal/bin/taffybar"
+  client <- connectSession
+  taffy <- spawnPipe "~/.cabal/bin/taffybar"
+--    _ <- spawnPipe "tint2 -c /home/eleazar/.config/tint2/tint2rc"
+  _ <- spawnPipe "bash /home/eleazar/conky-manager/conky-startup.sh"
   xmproc <- spawnPipe "xmobar ~/.xmonad/xmobar.hs"
 
   xmonad $ withUrgencyHook NoUrgencyHook $ ewmh $ defaultConfig
@@ -68,8 +82,8 @@ main = do
     , modMask            = myModMask
     , workspaces         = myWorkspaces
     , logHook            = ppXbar xmproc 
-                           <+> myLogHook
-    , layoutHook         = myLayouts
+                           <+> (dbusLog client) <+> myLogHook
+    , layoutHook         = showWName myLayouts
     , manageHook         = myManageHook 
                            <+> manageDocks 
                            <+> dynamicMasterHook 
@@ -81,7 +95,7 @@ main = do
 
 myTerminal, myEditor :: String
 myTerminal = "gnome-terminal"
-myEditor = "terminator -e yi"
+myEditor = "terminator -l yi"
 myModMask :: KeyMask
 myModMask = mod4Mask
 
@@ -110,6 +124,7 @@ myStartupHook = do
         startupHook defaultConfig
         spawnOnce myAppOnStartup
         windows $ W.greedyView startupWorkspace
+
         
 myAppOnStartup :: [Char]
 myAppOnStartup = flip (++) "&" . intercalate " &\n" $
@@ -121,7 +136,10 @@ myAppOnStartup = flip (++) "&" . intercalate " &\n" $
         "nautilus -n",
         "gnome-sound-applet",
         "/usr/bin/gnome-keyring-daemon --start --components=ssh,secrets,gpg,pkcs11",
-        "/usr/libexec/gnome-settings-daemon"
+        "/usr/libexec/gnome-settings-daemon",
+        "/usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1",
+        "xdg-user-dirs-gtk-update",
+        "/opt/extras.ubuntu.com/my-weather-indicator/bin/my-weather-indicator"
         -- "taffybar -c=configfile -- TODO
       ] 
 
@@ -135,7 +153,7 @@ ppXbar bar = dynamicLogWithPP $ xmobarPP
                 { ppOutput = hPutStrLn bar
                 , ppHiddenNoWindows = id
                 , ppHidden = xmobarColor "green" ""
-                , ppTitle = xmobarColor "white" "" . shorten 100
+                , ppTitle = xmobarColor "white" "" . shorten 39
                 , ppCurrent = xmobarColor "yellow" ""
                 , ppOrder = (\(ws:l:t:xs) -> [t,l,ws])
                 , ppSep = "   "}
@@ -143,41 +161,54 @@ ppXbar bar = dynamicLogWithPP $ xmobarPP
 --------------------------------------------------------------------------------
 -- Layouts
 --------------------------------------------------------------------------------
---myLayouts =
--- onWorkspace "Chat" chatLayout
--- $ defaultLayouts
---chatLayout = avoidStruts(withIM (1%7) (Title myIMRosterTitle) Grid)
+myLayouts = onWorkspace "Chat" pidginLayout $ 
+            onWorkspace "Hask" codeLayouts $ defaultLayouts
 
-myLayouts = named "Grid"      Grid
+
+tiledLayout = Tall nmaster delta ratio
+  where
+    nmaster = 1      -- The default number of windows in the master pane.
+    ratio   = 1/2    -- Default proportion of screen occupied by master pane.
+    delta   = 3/100  -- Percent of screen to increment by when resizing panes.
+fixedLayout = FixedColumn 1 20 80 10
+codeLayouts = avoidStruts tiledLayout ||| (avoidStruts (Mirror tiledLayout))
+pidginLayout = avoidStruts $ withIM (18/100) (Role "buddy_list") Grid
+
+
+
+-- editorLayout = avoidStruts $ withIM (3/5) (Title "Yi") Grid
+
+defaultLayouts = 
+        named "Grid"      Grid
 	||| named "Full"      Full 
         ||| named "Mirror"    (Mirror $ ResizableTall 1 (3/100) (1/2) [])
         ||| named "Magnifier" (magnifier $ ResizableTall 1 (3/100) (1/2) [])
-        ||| named "Float"     (floatingDeco $ borderResize positionStoreFloat)
+        ||| named "Tabbed"     (tabbed shrinkText defaultTheme)
         where named x = renamed [Replace x] . minimize . avoidStruts
-              floatingDeco = noFrillsDeco shrinkText defaultTheme
 
 
 -- Window rules:
 myManageHook :: ManageHook
 myManageHook = composeAll . concat $
-             [ [isDialog --> doFloat]
-             , [resource =? i --> doIgnore    | i <- myIgnores]]
+             [ [isDialog --> doCenterFloat
+               ,isFullscreen --> doFullFloat]]
+             ++ [inWorksp (const doIgnore) () myIgnores]
              ++ [inWorksp doShiftAndGo w s    | w <- myWorkspaces | s <- myShifts ]
              ++ [inWorksp (const doFloat) () myFloats]
 
          where doShiftAndGo = doF . liftM2 (.) W.greedyView W.shift
                inWorksp d w s = [(className =? x <||> title =? x <||> resource =? x) --> (d w) | x <- s]
                myShifts = [[], [], [], my1Shifts, my2Shifts, my3Shifts, my4Shifts, my5Shifts, my6Shifts, my7Shifts, my8Shifts, my9Shifts]
-               myFloats = ["Notas adhesivas", "Terminator Preferences", "Guake", "guake.py", "Escritorio"]
-               myIgnores = []
+               myFloats = ["Notas adhesivas", "Terminator Preferences", "Guake", "guake.py", "Escritorio","notification-daemon"]
+               myIgnores = ["notification-deamon", "Conky", "gnome-panel"]
                my1Shifts = [myTerminal]
                my2Shifts = ["nautilus", "ranger", "dolphin"]
                my3Shifts = []
                my4Shifts = ["evince"]
-               my5Shifts = ["gedit", "emacs24","SublimeText", "terminator", "gvim", "leksah"]
+               my5Shifts = ["gedit", "emacs24","SublimeText", "terminator", "gvim", "leksah", "Yi"]
                my6Shifts = ["chromium-browser"]
-               my7Shifts = ["emphaty","quassel", "thunderbird"]
-               my8Shifts = ["clementine"]
+               my7Shifts = ["emphaty","quassel", "thunderbird", "Pidgin"]
+               my8Shifts = ["clementine", "banshee"]
                my9Shifts = ["inkscape"]
 
 --------------------------------------------------------------------------------
@@ -194,10 +225,10 @@ myGSConfig = defaultGSConfig
 
 -- XPConfig options:
 myXPConfig :: XPConfig
-myXPConfig = defaultXPConfig { promptBorderWidth = 3
+myXPConfig = defaultXPConfig { promptBorderWidth = 1
                              , position = Top
                              , height = 30
-                             , historySize = 30
+                             , historySize = 100
                              }
 
 myKeyBindings :: [((KeyMask, KeySym), X ())]
@@ -206,8 +237,6 @@ myKeyBindings =
     ((myModMask, xK_b), sendMessage ToggleStruts)
     , ((myModMask, xK_a), sendMessage MirrorShrink)
     , ((myModMask, xK_z), sendMessage MirrorExpand)
-    , ((myModMask .|. shiftMask, xK_h ), sendMessage $ IncLayoutN (-1)) -- LayoutBuilder
-    , ((myModMask .|. shiftMask, xK_l ), sendMessage $ IncLayoutN 1) -- LayoutBuilder
     , ((myModMask,               xK_m), withFocused minimizeWindow) -- minimiza la app :)
     , ((myModMask .|. shiftMask, xK_m), sendMessage RestoreNextMinimizedWin)
     , ((myModMask .|. controlMask              , xK_plus ), sendMessage MagnifyMore) -- Magnifique Controls
@@ -215,15 +244,17 @@ myKeyBindings =
     , ((myModMask .|. controlMask              , xK_o    ), sendMessage ToggleOff  )
     , ((myModMask .|. controlMask .|. shiftMask, xK_o    ), sendMessage ToggleOn   )
     , ((myModMask .|. controlMask              , xK_m    ), sendMessage Toggle     ) -- End magnifique controls
-    --, ((myModMask .|. shiftMask, xK_g), gridselectWorkspace myGSConfig (\ws -> W.greedyView ws . W.shift ws)) -- display grid select and go to selected workspace
+    , ((myModMask .|. shiftMask, xK_g), gridselectWorkspace myGSConfig (\ws -> W.greedyView ws . W.shift ws)) -- display grid select and go to selected workspace
     , ((myModMask, xK_g), goToSelected myGSConfig) -- display grid select and go to selected window
     , ((myModMask, xK_q), spawn "killall dzen2 ; killall conky ; killall tint2 ; killall taffybar-linux-x86_64; xmonad --recompile && xmonad --restart")
     , ((mod4Mask, xK_Print), spawn "scrot screen_%Y-%m-%d.png -d 1") -- take screenshot
     , ((myModMask, xK_f), spawn "synapse")
-    , ((myModMask, xK_x), xmonadPrompt myXPConfig)
+    , ((myModMask, xK_x), runOrRaisePrompt myXPConfig)
+    , ((myModMask, xK_l), layoutPrompt myXPConfig)
+    , ((myModMask .|. shiftMask, xK_x), changeDir myXPConfig)
     , ((myModMask, xK_t), withFocused $ windows . W.sink)
     , ((myModMask, xK_w), spawn "oblogout")
-    , ((myModMask, xK_i), spawn "inkscape")
+    , ((myModMask, xK_i), spawn "terminator -e screen irssi")
     , ((myModMask, xK_c), spawn "chromium-browser")
     , ((myModMask, xK_n), spawn "nautilus")
     , ((myModMask, xK_e), spawn myEditor)
