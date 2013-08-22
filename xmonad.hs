@@ -9,6 +9,7 @@ import XMonad
 --------------------------------------------------------------------------------
 import XMonad.Actions.GridSelect
 import XMonad.Actions.Plane
+
 --------------------------------------------------------------------------------
 -- Hooks imports
 --------------------------------------------------------------------------------
@@ -31,6 +32,8 @@ import XMonad.Layout.Grid
 -- import XMonad.Layout.Spacing 
 import XMonad.Layout.PerWorkspace 
 import XMonad.Layout.IM
+import XMonad.Layout.DecorationAddons
+import XMonad.Layout.ButtonDecoration
 -- import XMonad.Layout.ComboP
 -- import XMonad.Layout.TwoPane
 import XMonad.Layout.ResizableTile
@@ -44,6 +47,7 @@ import XMonad.Layout.BorderResize
 import XMonad.Layout.ShowWName
 import XMonad.Layout.FixedColumn
 import XMonad.Layout.WorkspaceDir
+
 --------------------------------------------------------------------------------
 -- Others from Xmonad
 --------------------------------------------------------------------------------
@@ -55,25 +59,26 @@ import XMonad.Prompt.Layout
 import XMonad.Util.Run
 import XMonad.Util.EZConfig
 import XMonad.Util.SpawnOnce
+import XMonad.Util.NamedScratchpad
 import qualified XMonad.StackSet as W
+
 --------------------------------------------------------------------------------
 -- Others
 --------------------------------------------------------------------------------
 import Control.Monad (liftM2)
 import Data.List
-import DBus.Client
-import System.Taffybar.XMonadLog ( dbusLog )
+-- import DBus.Client
+-- import System.Taffybar.XMonadLog ( dbusLog )
 
 --------------------------------------------------------------------------------
 -- Main Xmonad
 --------------------------------------------------------------------------------
 main :: IO ()
 main = do
-  client <- connectSession
   taffy <- spawnPipe "~/.cabal/bin/taffybar"
 --    _ <- spawnPipe "tint2 -c /home/eleazar/.config/tint2/tint2rc"
   _ <- spawnPipe "bash /home/eleazar/conky-manager/conky-startup.sh"
-  xmproc <- spawnPipe "xmobar ~/.xmonad/xmobar.hs"
+  xmproc <- spawnPipe "~/.cabal/bin/xmobar ~/.xmonad/xmobar.hs"
 
   xmonad $ withUrgencyHook NoUrgencyHook $ ewmh $ defaultConfig
     { terminal           = myTerminal
@@ -82,16 +87,17 @@ main = do
     , modMask            = myModMask
     , workspaces         = myWorkspaces
     , logHook            = ppXbar xmproc 
-                           <+> (dbusLog client) <+> myLogHook
+                           <+> myLogHook
     , layoutHook         = showWName myLayouts
     , manageHook         = myManageHook 
                            <+> manageDocks 
                            <+> dynamicMasterHook 
                            <+> toggleHook "float" doFloat
+                           <+> namedScratchpadManageHook scratchpads
     , handleEventHook    = myHandleEventHook
-    , startupHook        = myStartupHook
+    , startupHook        = myStartupHook >> checkKeymap defaultConfig myKeys
     }
-      `additionalKeys` myKeys
+     `additionalKeysP` myKeys
 
 myTerminal, myEditor :: String
 myTerminal = "gnome-terminal"
@@ -108,16 +114,21 @@ myWorkspaces =
     "Chat", "Play", "Inks"
   ]
 
+-- | On start xmonad, set this workspace how current
 startupWorkspace :: [Char]
 startupWorkspace = "Hask"
 
+-- | fullscreen support, don't hide dock (xmobar, taffybar), minimize window support
 myHandleEventHook = fullscreenEventHook <+> docksEventHook <+> minimizeEventHook 
 
+-- | set opacity to unfocused windows, add app property for set up the opacity 
 myFadeHook :: FadeHook
-myFadeHook = composeAll [  opaque ,isUnfocused --> opacity 0.75
-                           , className =? "mplayer2"  --> opaque
+myFadeHook = composeAll [ opaque -- **Important that this is in first place
+                        , isUnfocused --> opacity 0.75 -- all unfocused
+                        , className =? "mplayer2"  --> opaque -- example ^
                         ]
 
+-- | 
 myStartupHook :: X ()
 myStartupHook = do
         setWMName "LG3D"
@@ -125,7 +136,7 @@ myStartupHook = do
         spawnOnce myAppOnStartup
         windows $ W.greedyView startupWorkspace
 
-        
+-- | App on start, more easy form to a start-hook.sh
 myAppOnStartup :: [Char]
 myAppOnStartup = flip (++) "&" . intercalate " &\n" $
       [ "xcompmgr",
@@ -148,8 +159,9 @@ myLogHook = fadeWindowsLogHook myFadeHook
             <+> ewmhDesktopsLogHook 
             >> setWMName "LG3D" 
 
+-- | Config of xmobar pp
 --ppXbar :: Handle -> X ()
-ppXbar bar = dynamicLogWithPP $ xmobarPP 
+ppXbar bar = dynamicLogWithPP . namedScratchpadFilterOutWorkspacePP $ xmobarPP 
                 { ppOutput = hPutStrLn bar
                 , ppHiddenNoWindows = id
                 , ppHidden = xmobarColor "green" ""
@@ -160,7 +172,7 @@ ppXbar bar = dynamicLogWithPP $ xmobarPP
 
 --------------------------------------------------------------------------------
 -- Layouts
---------------------------------------------------------------------------------
+-- 
 myLayouts = onWorkspace "Chat" pidginLayout $ 
             onWorkspace "Hask" codeLayouts $ defaultLayouts
 
@@ -174,18 +186,18 @@ fixedLayout = FixedColumn 1 20 80 10
 codeLayouts = avoidStruts tiledLayout ||| (avoidStruts (Mirror tiledLayout))
 pidginLayout = avoidStruts $ withIM (18/100) (Role "buddy_list") Grid
 
-
-
--- editorLayout = avoidStruts $ withIM (3/5) (Title "Yi") Grid
+scratchpads = [ NS "fvim" "gvim --role fvim" (role =? "fvim") defaultFloating,
+                NS "terminal" "gnome-terminal --role terminal" (role =? "terminal") defaultFloating
+              ] where role = stringProperty "WM_WINDOW_ROLE"
 
 defaultLayouts = 
-        named "Grid"      Grid
+            named "Grid"      Grid
 	||| named "Full"      Full 
         ||| named "Mirror"    (Mirror $ ResizableTall 1 (3/100) (1/2) [])
         ||| named "Magnifier" (magnifier $ ResizableTall 1 (3/100) (1/2) [])
-        ||| named "Tabbed"     (tabbed shrinkText defaultTheme)
+        ||| named "Buttons"   (buttonDeco shrinkText defaultThemeWithButtons (layoutHook defaultConfig))
+        ||| named "Tabbed"    (tabbed shrinkText defaultTheme)
         where named x = renamed [Replace x] . minimize . avoidStruts
-
 
 -- Window rules:
 myManageHook :: ManageHook
@@ -231,71 +243,63 @@ myXPConfig = defaultXPConfig { promptBorderWidth = 1
                              , historySize = 100
                              }
 
-myKeyBindings :: [((KeyMask, KeySym), X ())]
-myKeyBindings =
-  [
-    ((myModMask, xK_b), sendMessage ToggleStruts)
-    , ((myModMask, xK_a), sendMessage MirrorShrink)
-    , ((myModMask, xK_z), sendMessage MirrorExpand)
-    , ((myModMask,               xK_m), withFocused minimizeWindow) -- minimiza la app :)
-    , ((myModMask .|. shiftMask, xK_m), sendMessage RestoreNextMinimizedWin)
-    , ((myModMask .|. controlMask              , xK_plus ), sendMessage MagnifyMore) -- Magnifique Controls
-    , ((myModMask .|. controlMask              , xK_minus), sendMessage MagnifyLess)
-    , ((myModMask .|. controlMask              , xK_o    ), sendMessage ToggleOff  )
-    , ((myModMask .|. controlMask .|. shiftMask, xK_o    ), sendMessage ToggleOn   )
-    , ((myModMask .|. controlMask              , xK_m    ), sendMessage Toggle     ) -- End magnifique controls
-    , ((myModMask .|. shiftMask, xK_g), gridselectWorkspace myGSConfig (\ws -> W.greedyView ws . W.shift ws)) -- display grid select and go to selected workspace
-    , ((myModMask, xK_g), goToSelected myGSConfig) -- display grid select and go to selected window
-    , ((myModMask, xK_q), spawn "killall dzen2 ; killall conky ; killall tint2 ; killall taffybar-linux-x86_64; xmonad --recompile && xmonad --restart")
-    , ((mod4Mask, xK_Print), spawn "scrot screen_%Y-%m-%d.png -d 1") -- take screenshot
-    , ((myModMask, xK_f), spawn "synapse")
-    , ((myModMask, xK_x), runOrRaisePrompt myXPConfig)
-    , ((myModMask, xK_l), layoutPrompt myXPConfig)
-    , ((myModMask .|. shiftMask, xK_x), changeDir myXPConfig)
-    , ((myModMask, xK_t), withFocused $ windows . W.sink)
-    , ((myModMask, xK_w), spawn "oblogout")
-    , ((myModMask, xK_i), spawn "terminator -e screen irssi")
-    , ((myModMask, xK_c), spawn "chromium-browser")
-    , ((myModMask, xK_n), spawn "nautilus")
-    , ((myModMask, xK_e), spawn myEditor)
-    , ((myModMask, xK_u), focusUrgent) -- me redirige al foco urgente
-    , ((0, 0x1008FF12), spawn "amixer -q set Master toggle")
-    , ((0, 0x1008FF11), spawn "amixer -q set Master 1%-")
-    , ((0, 0x1008FF13), spawn "amixer -q set Master 1%+")
-  ]
+-- | M mk ref to mymodmask, C -> Ctrl, S -> Shift, M1 -> Alt
+myKeyBindings :: [(String, X ())]
+myKeyBindings = [ ( "M-b",               sendMessage ToggleStruts) -- Set a current app in full screen, hide all bars
+                , ( "M-a",               sendMessage MirrorShrink)
+                , ( "M-z",               sendMessage MirrorExpand)
+                , ( "M-m",               withFocused minimizeWindow) -- Minimize app
+                , ( "M-S-m",             sendMessage RestoreNextMinimizedWin) -- UnMinimize app
+                , ( "M-C-<KP_Add>",      sendMessage MagnifyMore) -- Zoom in focus app  -- Magnified layout
+                , ( "M-C-<KP_Subtract>", sendMessage MagnifyLess) -- Zoom out focus app --
+                , ( "M-C-m",             sendMessage Toggle     ) -- On/Off the ZoomEnd -- Magnified layout
+                , ( "M-S-g",             gridselectWorkspace myGSConfig (\ws -> W.greedyView ws . W.shift ws)) -- display grid select and go to selected workspace
+                , ( "M-g",               goToSelected myGSConfig) -- display grid select and go to selected window
+                , ( "M-q",               spawn "killall dzen2 ; killall conky ; killall tint2 ; killall taffybar-linux-x86_64; xmonad --recompile && xmonad --restart")
+                , ( "M-<Print>",         spawn "scrot screen_%Y-%m-%d.png -d 1") -- take screenshot
+                , ( "M-f",               spawn "synapse") -- launcher
+                , ( "M-x",               runOrRaisePrompt myXPConfig) -- alternative to synapse
+                , ( "M-l",               layoutPrompt myXPConfig) -- launcher for layout
+                , ( "M-S-x",             changeDir myXPConfig) -- en que situaciones sirve???
+                , ( "M-t",               withFocused $ windows . W.sink) -- rehook app to layout if this is float
+                , ( "M-c",               spawn "chromium-browser")
+                , ( "M-n",               spawn "nautilus")
+                , ( "M-e",               spawn myEditor)
+                , ( "M-u",               focusUrgent) -- me redirige al foco urgente
+                , ( "M-S-t",             namedScratchpadAction scratchpads "terminal")
+                , ( "M-S-v",             namedScratchpadAction scratchpads "fvim")
+                , ( "<XF86AudioMute>",        spawn "amixer -q set Master toggle")
+                , ( "<XF86AudioLowerVolume>", spawn "amixer -q set Master 1%-")
+                , ( "<XF86AudioRaiseVolume>", spawn "amixer -q set Master 1%+")
+                ]   
 
 
 -- TECLADO NUMERICO
-numPadKeys :: [KeySym]
-numPadKeys = [ xK_KP_Insert, xK_KP_Delete, xK_KP_Enter
-             , xK_KP_End, xK_KP_Down, xK_KP_Page_Down
-             , xK_KP_Left, xK_KP_Begin,xK_KP_Right
-             , xK_KP_Home, xK_KP_Up, xK_KP_Page_Up
+-- | There are same with num bloq or without
+numPadKeys :: [String]
+numPadKeys = [ "<KP_Insert>", "<KP_Delete>", "<KP_Enter>"
+             , "<KP_End>",    "<KP_Down>",   "<KP_Page_Down>"
+             , "<KP_Left>",   "<KP_Begin>",  "<KP_Right>"
+             , "<KP_Home>",   "<KP_Up>",     "<KP_Page_Up>"
              ]
 
-numKeys :: [KeySym]
-numKeys = [ xK_0, xK_minus, xK_equal
-          , xK_1, xK_2, xK_3
-          , xK_4, xK_5, xK_6
-          , xK_7, xK_8, xK_9
+numKeys :: [String]
+numKeys = [ "0", "<KP_Decimal>", "<KP_Equal>"
+          , "1", "2", "3"
+          , "4", "5", "6"
+          , "7", "8", "9"
           ]
 
-myplaneKeys :: KeyMask -> Lines -> Limits -> [((KeyMask, KeySym), X ())]
-myplaneKeys modm ln limits =
-  [ ((keyMask, keySym), function ln limits direction)
-  | (keySym, direction) <- zip [xK_Left .. xK_Down] $ enumFrom ToLeft
-  , (keyMask, function) <- [(modm, planeMove), (shiftMask .|. modm, planeShift)]
+-- | Plane Keys, move between workspaces with arrow keys, and with shift+Arrow, transport a window
+myplaneKeys :: Lines -> Limits -> [(String, X ())]
+myplaneKeys ln limits =
+  [ (keyMask++keySym, function ln limits direction)
+  | (keySym, direction) <- zip ["<Left>", "<Down>", "<Right>", "<Up>"] $ enumFrom ToLeft
+  , (keyMask, function) <- [("M-", planeMove), ("M-S-", planeShift)]
   ]
 
-myKeys :: [((KeyMask, KeySym), X ())]
-myKeys = myKeyBindings ++
-  [
-    ((m .|. myModMask, k), windows $ f i)
-       | (i, k) <- zip myWorkspaces numPadKeys
-       , (f, m) <- [(W.greedyView, 0), (W.shift, shiftMask)]
-  ] ++
-  [
-    ((m .|. myModMask, k), windows $ f i)
-       | (i, k) <- zip myWorkspaces numKeys
-       , (f, m) <- [(W.greedyView, 0), (W.shift, shiftMask)]
-  ] ++ myplaneKeys myModMask (Lines 4) Circular
+
+myKeys :: [(String, X ())]
+myKeys = [ (m++"M-"++k, windows $ f i) | (f, m) <- [(W.greedyView, ""), (W.shift, "S-")]
+                                       , (i, k) <- zip myWorkspaces numPadKeys ++ (zip myWorkspaces numKeys)
+         ] ++ myKeyBindings ++ (myplaneKeys (Lines 4) Circular)
