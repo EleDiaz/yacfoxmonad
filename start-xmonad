@@ -1,0 +1,40 @@
+#!/bin/bash
+# GENERAL INITIALIZATION
+#
+#!/bin/sh
+
+#
+# ~/.xinitrc
+#
+# Executed by startx (run your window manager from here)
+#
+
+xrandr -s 0
+
+xrdb -load $HOME/.Xdefaults
+xrdb -load .Xresources
+xsetroot -cursor_name left_ptr
+xsetroot -solid '#0f0f0f'
+
+xset b off
+xset s off
+xset -dpms
+
+#xmodmap -e "keysym Super_R = SunCompose"
+
+#fbsetbg -b -solid "#0f0f0f"
+#nitrogen --restore &
+
+#xcompmgr -c -t-5 -l-5 -r4.2 -o.25 &
+#{ sleep 1; urxvt -name ncmpcpp-clock -e ncmpcpp; } &
+#chromium-browser &
+#gmpc &
+export GTK2_RC_FILES="$HOME/.xmonad/.gtkrc-2.0"
+export MPD_HOST=localhost
+export MPD_PORT=6600
+#export OOO_FORCE_DESKTOP=gnome
+echo "heeeere"
+
+exec dbus-launch --sh-syntax --exit-with-session xmonad > $HOME/.xmonad/log.txt 2>&1
+
+
