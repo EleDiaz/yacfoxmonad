@@ -10,4 +10,4 @@ Yet another config file of Xmonad. Programs used for this configuration:
 Preview
 -------
 
-![Image](../blob/master/preview.png?raw=true)
+![Image](../master/preview.png?raw=true)
