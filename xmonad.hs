@@ -1,9 +1,10 @@
+
 ------------------------------------------------------------------------
 -- ~/.xmonad/xmonad.hs
 {-# LANGUAGE NoMonomorphismRestriction, ParallelListComp #-}
 ------------------------------------------------------------------------
 
-import XMonad 
+import XMonad
 --------------------------------------------------------------------------------
 -- Actions imports
 --------------------------------------------------------------------------------
@@ -23,14 +24,15 @@ import XMonad.Hooks.UrgencyHook
 import XMonad.Hooks.SetWMName
 import XMonad.Hooks.Minimize
 import XMonad.Hooks.ToggleHook
+
 --------------------------------------------------------------------------------
 -- Layout imports
 --------------------------------------------------------------------------------
 import XMonad.Layout.Renamed
 import XMonad.Layout.Minimize
 import XMonad.Layout.Grid
--- import XMonad.Layout.Spacing 
-import XMonad.Layout.PerWorkspace 
+-- import XMonad.Layout.Spacing
+import XMonad.Layout.PerWorkspace
 import XMonad.Layout.IM
 import XMonad.Layout.DecorationAddons
 import XMonad.Layout.ButtonDecoration
@@ -75,10 +77,12 @@ import Data.List
 --------------------------------------------------------------------------------
 main :: IO ()
 main = do
-  taffy <- spawnPipe "~/.cabal/bin/taffybar"
---    _ <- spawnPipe "tint2 -c /home/eleazar/.config/tint2/tint2rc"
-  _ <- spawnPipe "bash /home/eleazar/conky-manager/conky-startup.sh"
-  xmproc <- spawnPipe "~/.cabal/bin/xmobar ~/.xmonad/xmobar.hs"
+  --  taffy <- spawnPipe "~/.cabal/bin/taffybar"
+  --    _ <- spawnPipe "tint2 -c /home/eleazar/.config/tint2/tint2rc"
+  --_ <- spawnPipe "bash /home/eleazar/conky-manager/conky-startup.sh"
+  --xmproc <- spawnPipe "~/.cabal/bin/xmobar ~/.xmonad/xmobar.hs"
+  --tint2 <- spawnPipe "tint2"
+  conky <- spawnPipe "conky"
 
   xmonad $ withUrgencyHook NoUrgencyHook $ ewmh $ defaultConfig
     { terminal           = myTerminal
@@ -86,12 +90,12 @@ main = do
     , borderWidth        = 0
     , modMask            = myModMask
     , workspaces         = myWorkspaces
-    , logHook            = ppXbar xmproc 
-                           <+> myLogHook
+    , logHook            = --ppXbar xmproc
+                           myLogHook
     , layoutHook         = showWName myLayouts
-    , manageHook         = myManageHook 
-                           <+> manageDocks 
-                           <+> dynamicMasterHook 
+    , manageHook         = myManageHook
+                           <+> manageDocks
+                           <+> dynamicMasterHook
                            <+> toggleHook "float" doFloat
                            <+> namedScratchpadManageHook scratchpads
     , handleEventHook    = myHandleEventHook
@@ -100,8 +104,9 @@ main = do
      `additionalKeysP` myKeys
 
 myTerminal, myEditor :: String
-myTerminal = "gnome-terminal"
-myEditor = "terminator -l yi"
+myTerminal = "terminator"
+myEditor = "emacs" -- nunca vere cual es mejor
+myEditor2 = "vim"
 myModMask :: KeyMask
 myModMask = mod4Mask
 
@@ -119,16 +124,16 @@ startupWorkspace :: [Char]
 startupWorkspace = "Hask"
 
 -- | fullscreen support, don't hide dock (xmobar, taffybar), minimize window support
-myHandleEventHook = fullscreenEventHook <+> docksEventHook <+> minimizeEventHook 
+myHandleEventHook = fullscreenEventHook <+> docksEventHook <+> minimizeEventHook
 
--- | set opacity to unfocused windows, add app property for set up the opacity 
+-- | set opacity to unfocused windows, add app property for set up the opacity
 myFadeHook :: FadeHook
 myFadeHook = composeAll [ opaque -- **Important that this is in first place
                         , isUnfocused --> opacity 0.75 -- all unfocused
                         , className =? "mplayer2"  --> opaque -- example ^
                         ]
 
--- | 
+-- |
 myStartupHook :: X ()
 myStartupHook = do
         setWMName "LG3D"
@@ -139,29 +144,34 @@ myStartupHook = do
 -- | App on start, more easy form to a start-hook.sh
 myAppOnStartup :: [Char]
 myAppOnStartup = flip (++) "&" . intercalate " &\n" $
-      [ "xcompmgr",
-        "clementine",
-        "nm-applet",
+      [ "compton",
+        -- "emacs --daemon",
+        -- "radeontray", -- no funciona sin root TODO
+        -- "/home/eleazar/.cabal/bin/Kashe",
+        -- "nm-applet",
+        "start-pulseaudio-x11",
         "guake",
         "synapse",
-        "nautilus -n",
-        "gnome-sound-applet",
-        "/usr/bin/gnome-keyring-daemon --start --components=ssh,secrets,gpg,pkcs11",
-        "/usr/libexec/gnome-settings-daemon",
-        "/usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1",
-        "xdg-user-dirs-gtk-update",
-        "/opt/extras.ubuntu.com/my-weather-indicator/bin/my-weather-indicator"
+        "nitrogen --restore",
+        "pa-applet",
+        -- "octopi-notifier", -- optimizando energia :\
+        "parcellite"
+        --"/usr/bin/gnome-keyring-daemon --start --components=ssh,secrets,gpg,pkcs11",
+        --"wicd-client --tray"
+        --"/usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1",
+        --"xdg-user-dirs-gtk-update",
+        --"/opt/extras.ubuntu.com/my-weather-indicator/bin/my-weather-indicator"
         -- "taffybar -c=configfile -- TODO
-      ] 
+      ]
 
 myLogHook :: X ()
-myLogHook = fadeWindowsLogHook myFadeHook 
-            <+> ewmhDesktopsLogHook 
-            >> setWMName "LG3D" 
+myLogHook = fadeWindowsLogHook myFadeHook
+            <+> ewmhDesktopsLogHook
+            >> setWMName "LG3D"
 
 -- | Config of xmobar pp
 --ppXbar :: Handle -> X ()
-ppXbar bar = dynamicLogWithPP . namedScratchpadFilterOutWorkspacePP $ xmobarPP 
+ppXbar bar = dynamicLogWithPP . namedScratchpadFilterOutWorkspacePP $ xmobarPP
                 { ppOutput = hPutStrLn bar
                 , ppHiddenNoWindows = id
                 , ppHidden = xmobarColor "green" ""
@@ -172,8 +182,8 @@ ppXbar bar = dynamicLogWithPP . namedScratchpadFilterOutWorkspacePP $ xmobarPP
 
 --------------------------------------------------------------------------------
 -- Layouts
--- 
-myLayouts = onWorkspace "Chat" pidginLayout $ 
+--
+myLayouts = onWorkspace "Chat" pidginLayout $
             onWorkspace "Hask" codeLayouts $ defaultLayouts
 
 
@@ -183,20 +193,21 @@ tiledLayout = Tall nmaster delta ratio
     ratio   = 1/2    -- Default proportion of screen occupied by master pane.
     delta   = 3/100  -- Percent of screen to increment by when resizing panes.
 fixedLayout = FixedColumn 1 20 80 10
-codeLayouts = avoidStruts tiledLayout ||| (avoidStruts (Mirror tiledLayout))
-pidginLayout = avoidStruts $ withIM (18/100) (Role "buddy_list") Grid
+codeLayouts = avoidStruts tiledLayout ||| (avoidStruts (Mirror tiledLayout)) ||| Full
+pidginLayout = avoidStruts $ withIM (35/100) (Or (Role "buddy_list") (Role "ConversationsWindow")) Grid
 
-scratchpads = [ NS "fvim" "gvim --role fvim" (role =? "fvim") defaultFloating,
-                NS "terminal" "gnome-terminal --role terminal" (role =? "terminal") defaultFloating
+scratchpads = [ NS "fvim" "gvim --role fvim" (role =? "fvim") box,
+                NS "terminal" "lxterminal --role terminal" (role =? "terminal") box,
+                NS "Kashe" "/home/elediaz/.cabal/bin/Kashe" (className =? "Kashe") box
               ] where role = stringProperty "WM_WINDOW_ROLE"
+                      box  = customFloating $ W.RationalRect (1/6) (1/6) (2/3) (2/3)
 
-defaultLayouts = 
-            named "Grid"      Grid
-	||| named "Full"      Full 
-        ||| named "Mirror"    (Mirror $ ResizableTall 1 (3/100) (1/2) [])
-        ||| named "Magnifier" (magnifier $ ResizableTall 1 (3/100) (1/2) [])
-        ||| named "Buttons"   (buttonDeco shrinkText defaultThemeWithButtons (layoutHook defaultConfig))
-        ||| named "Tabbed"    (tabbed shrinkText defaultTheme)
+defaultLayouts = named "Grid"      Grid
+              ||| named "Full"      Full
+              ||| named "Mirror"    (Mirror $ ResizableTall 1 (3/100) (1/2) [])
+              ||| named "Magnifier" (magnifier $ ResizableTall 1 (3/100) (1/2) [])
+              ||| named "Buttons"   (buttonDeco shrinkText defaultThemeWithButtons (layoutHook defaultConfig))
+              ||| named "Tabbed"    (tabbed shrinkText defaultTheme)
         where named x = renamed [Replace x] . minimize . avoidStruts
 
 -- Window rules:
@@ -212,20 +223,21 @@ myManageHook = composeAll . concat $
                inWorksp d w s = [(className =? x <||> title =? x <||> resource =? x) --> (d w) | x <- s]
                myShifts = [[], [], [], my1Shifts, my2Shifts, my3Shifts, my4Shifts, my5Shifts, my6Shifts, my7Shifts, my8Shifts, my9Shifts]
                myFloats = ["Notas adhesivas", "Terminator Preferences", "Guake", "guake.py", "Escritorio","notification-daemon"]
-               myIgnores = ["notification-deamon", "Conky", "gnome-panel"]
+               myIgnores = ["xfce4-notifyd", "conky", "gnome-panel", "oblogout"]
                my1Shifts = [myTerminal]
-               my2Shifts = ["nautilus", "ranger", "dolphin"]
+               my2Shifts = ["nautilus", "thunar", "ranger", "dolphin"]
                my3Shifts = []
-               my4Shifts = ["evince"]
-               my5Shifts = ["gedit", "emacs24","SublimeText", "terminator", "gvim", "leksah", "Yi"]
-               my6Shifts = ["chromium-browser"]
-               my7Shifts = ["emphaty","quassel", "thunderbird", "Pidgin"]
+               my4Shifts = ["evince", "okular", "zathura"]
+               my5Shifts = ["gedit", "emacs","sublime_text", "gvim", "leksah", "Yi"]
+               my6Shifts = ["chromium"]
+               my7Shifts = ["emphaty","quassel", "thunderbird", "Pidgin", "skype"]
                my8Shifts = ["clementine", "banshee"]
                my9Shifts = ["inkscape"]
 
 --------------------------------------------------------------------------------
 -- Keybinding
 --------------------------------------------------------------------------------
+
 -- GSConfig options:
 myGSConfig :: HasColorizer a => GSConfig a
 myGSConfig = defaultGSConfig
@@ -262,16 +274,24 @@ myKeyBindings = [ ( "M-b",               sendMessage ToggleStruts) -- Set a curr
                 , ( "M-l",               layoutPrompt myXPConfig) -- launcher for layout
                 , ( "M-S-x",             changeDir myXPConfig) -- en que situaciones sirve???
                 , ( "M-t",               withFocused $ windows . W.sink) -- rehook app to layout if this is float
-                , ( "M-c",               spawn "chromium-browser")
-                , ( "M-n",               spawn "nautilus")
+                , ( "M-c",               spawn "chromium")
+                , ( "M-w",               spawn "oblogout")
+                , ( "M-n",               spawn "thunar")
+                , ( "C-M-t",             spawn "modprobe -i psmouse") -- activa touchpad -- To TestMODE
+                , ( "C-M-S-t",           spawn "modprobe -r psmouse") -- disable touchpad
                 , ( "M-e",               spawn myEditor)
                 , ( "M-u",               focusUrgent) -- me redirige al foco urgente
                 , ( "M-S-t",             namedScratchpadAction scratchpads "terminal")
                 , ( "M-S-v",             namedScratchpadAction scratchpads "fvim")
+                , ( "M-S-a",             namedScratchpadAction scratchpads "Kashe")
                 , ( "<XF86AudioMute>",        spawn "amixer -q set Master toggle")
                 , ( "<XF86AudioLowerVolume>", spawn "amixer -q set Master 1%-")
                 , ( "<XF86AudioRaiseVolume>", spawn "amixer -q set Master 1%+")
-                ]   
+                , ( "<XF86AudioPlay>",        spawn "mpc play") -- TODO: play and pause
+                , ( "<XF86AudioStop>",        spawn "mpc stop")
+                , ( "<XF86AudioPrev>",        spawn "mpc prev")
+                , ( "<XF86AudioNext>",        spawn "mpc next")
+                ]
 
 
 -- TECLADO NUMERICO

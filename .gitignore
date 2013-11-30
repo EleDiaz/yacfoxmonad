@@ -2,8 +2,12 @@ xmonad.errors
 xmonad.hi
 xmonad.o
 xmonad-x86_64-linux
+.directory
 *.swp
 xmonad.hs~
 other/
 images/
 log.txt
+history
+Kashe*
+
