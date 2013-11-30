@@ -43,9 +43,9 @@ import XMonad.Layout.Fullscreen
 -- import XMonad.Layout.LayoutBuilder -- construye contenedores
 import XMonad.Layout.Magnifier -- incrementa la ventana enfocada
 import XMonad.Layout.Tabbed
-import XMonad.Layout.PositionStoreFloat
-import XMonad.Layout.NoFrillsDecoration
-import XMonad.Layout.BorderResize
+-- import XMonad.Layout.PositionStoreFloat
+-- import XMonad.Layout.NoFrillsDecoration
+-- import XMonad.Layout.BorderResize
 import XMonad.Layout.ShowWName
 import XMonad.Layout.FixedColumn
 import XMonad.Layout.WorkspaceDir
@@ -142,7 +142,7 @@ myStartupHook = do
         windows $ W.greedyView startupWorkspace
 
 -- | App on start, more easy form to a start-hook.sh
-myAppOnStartup :: [Char]
+myAppOnStartup :: String
 myAppOnStartup = flip (++) "&" . intercalate " &\n" $
       [ "compton",
         -- "emacs --daemon",
@@ -197,12 +197,12 @@ codeLayouts = avoidStruts tiledLayout ||| (avoidStruts (Mirror tiledLayout)) |||
 pidginLayout = avoidStruts $ withIM (35/100) (Or (Role "buddy_list") (Role "ConversationsWindow")) Grid
 
 scratchpads = [ NS "fvim" "gvim --role fvim" (role =? "fvim") box,
-                NS "terminal" "lxterminal --role terminal" (role =? "terminal") box,
-                NS "Kashe" "/home/elediaz/.cabal/bin/Kashe" (className =? "Kashe") box
+                NS "terminal" "lxterminal" (className =? "Lxterminal") box
+                -- NS "Kashe" "/home/elediaz/.cabal/bin/Kashe" (className =? "Kashe") box
               ] where role = stringProperty "WM_WINDOW_ROLE"
                       box  = customFloating $ W.RationalRect (1/6) (1/6) (2/3) (2/3)
 
-defaultLayouts = named "Grid"      Grid
+defaultLayouts = named "Grid"       Grid
               ||| named "Full"      Full
               ||| named "Mirror"    (Mirror $ ResizableTall 1 (3/100) (1/2) [])
               ||| named "Magnifier" (magnifier $ ResizableTall 1 (3/100) (1/2) [])
@@ -283,7 +283,7 @@ myKeyBindings = [ ( "M-b",               sendMessage ToggleStruts) -- Set a curr
                 , ( "M-u",               focusUrgent) -- me redirige al foco urgente
                 , ( "M-S-t",             namedScratchpadAction scratchpads "terminal")
                 , ( "M-S-v",             namedScratchpadAction scratchpads "fvim")
-                , ( "M-S-a",             namedScratchpadAction scratchpads "Kashe")
+                -- , ( "M-S-a",             namedScratchpadAction scratchpads "Kashe")
                 , ( "<XF86AudioMute>",        spawn "amixer -q set Master toggle")
                 , ( "<XF86AudioLowerVolume>", spawn "amixer -q set Master 1%-")
                 , ( "<XF86AudioRaiseVolume>", spawn "amixer -q set Master 1%+")
