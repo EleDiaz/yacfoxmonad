@@ -1,74 +1,64 @@
-
 ------------------------------------------------------------------------
 -- ~/.xmonad/xmonad.hs
-{-# LANGUAGE NoMonomorphismRestriction, ParallelListComp #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE ParallelListComp          #-}
 ------------------------------------------------------------------------
 
-import XMonad
+import           XMonad
 --------------------------------------------------------------------------------
 -- Actions imports
 --------------------------------------------------------------------------------
-import XMonad.Actions.GridSelect
-import XMonad.Actions.Plane
+import           XMonad.Actions.GridSelect
+import           XMonad.Actions.Plane
 
 --------------------------------------------------------------------------------
 -- Hooks imports
 --------------------------------------------------------------------------------
-import XMonad.Hooks.EwmhDesktops hiding (fullscreenEventHook)
-import XMonad.Hooks.DynamicHooks
-import XMonad.Hooks.DynamicLog
-import XMonad.Hooks.ManageDocks
-import XMonad.Hooks.FadeWindows
-import XMonad.Hooks.ManageHelpers
-import XMonad.Hooks.UrgencyHook
-import XMonad.Hooks.SetWMName
-import XMonad.Hooks.Minimize
-import XMonad.Hooks.ToggleHook
+import           XMonad.Hooks.DynamicHooks
+import           XMonad.Hooks.DynamicLog
+import           XMonad.Hooks.EwmhDesktops   hiding (fullscreenEventHook)
+import           XMonad.Hooks.FadeWindows
+import           XMonad.Hooks.ManageDocks
+import           XMonad.Hooks.ManageHelpers
+import           XMonad.Hooks.Minimize
+import           XMonad.Hooks.SetWMName
+import           XMonad.Hooks.ToggleHook
+import           XMonad.Hooks.UrgencyHook
 
 --------------------------------------------------------------------------------
 -- Layout imports
 --------------------------------------------------------------------------------
-import XMonad.Layout.Renamed
-import XMonad.Layout.Minimize
-import XMonad.Layout.Grid
--- import XMonad.Layout.Spacing
-import XMonad.Layout.PerWorkspace
-import XMonad.Layout.IM
-import XMonad.Layout.DecorationAddons
-import XMonad.Layout.ButtonDecoration
--- import XMonad.Layout.ComboP
--- import XMonad.Layout.TwoPane
-import XMonad.Layout.ResizableTile
-import XMonad.Layout.Fullscreen
--- import XMonad.Layout.LayoutBuilder -- construye contenedores
-import XMonad.Layout.Magnifier -- incrementa la ventana enfocada
-import XMonad.Layout.Tabbed
--- import XMonad.Layout.PositionStoreFloat
--- import XMonad.Layout.NoFrillsDecoration
--- import XMonad.Layout.BorderResize
-import XMonad.Layout.ShowWName
-import XMonad.Layout.FixedColumn
-import XMonad.Layout.WorkspaceDir
+import           XMonad.Layout.Fullscreen
+import           XMonad.Layout.Grid
+import           XMonad.Layout.IM
+import           XMonad.Layout.Magnifier
+import           XMonad.Layout.Minimize
+import           XMonad.Layout.PerWorkspace
+import           XMonad.Layout.Renamed
+import           XMonad.Layout.ResizableTile
+import           XMonad.Layout.ShowWName
+import           XMonad.Layout.Tabbed
+import           XMonad.Layout.WorkspaceDir
 
 --------------------------------------------------------------------------------
 -- Others from Xmonad
 --------------------------------------------------------------------------------
 -- import XMonad.Prompt.Shell
-import XMonad.Prompt
-import XMonad.Prompt.RunOrRaise
-import XMonad.Prompt.Layout
+import           XMonad.Prompt
+import           XMonad.Prompt.Layout
+import           XMonad.Prompt.RunOrRaise
 
-import XMonad.Util.Run
-import XMonad.Util.EZConfig
-import XMonad.Util.SpawnOnce
-import XMonad.Util.NamedScratchpad
-import qualified XMonad.StackSet as W
+import qualified XMonad.StackSet             as W
+import           XMonad.Util.EZConfig
+import           XMonad.Util.NamedScratchpad
+import           XMonad.Util.Run
+import           XMonad.Util.SpawnOnce
 
 --------------------------------------------------------------------------------
 -- Others
 --------------------------------------------------------------------------------
-import Control.Monad (liftM2)
-import Data.List
+import           Control.Monad               (liftM2)
+import           Data.List
 -- import DBus.Client
 -- import System.Taffybar.XMonadLog ( dbusLog )
 
@@ -77,21 +67,17 @@ import Data.List
 --------------------------------------------------------------------------------
 main :: IO ()
 main = do
-  --  taffy <- spawnPipe "~/.cabal/bin/taffybar"
-  --    _ <- spawnPipe "tint2 -c /home/eleazar/.config/tint2/tint2rc"
-  --_ <- spawnPipe "bash /home/eleazar/conky-manager/conky-startup.sh"
-  --xmproc <- spawnPipe "~/.cabal/bin/xmobar ~/.xmonad/xmobar.hs"
-  --tint2 <- spawnPipe "tint2"
-  conky <- spawnPipe "conky"
-
+  -- conky <- spawnPipe "conky"
+  xmproc <- spawnPipe "/home/elediaz/.cabal/bin/xmobar /home/elediaz/.xmonad/xmobar.hs"
+  xmbar  <- spawnPipe "/home/elediaz/.cabal/bin/xmobar /home/elediaz/.xmonad/bar2.hs"
   xmonad $ withUrgencyHook NoUrgencyHook $ ewmh $ defaultConfig
     { terminal           = myTerminal
     , focusFollowsMouse  = False
     , borderWidth        = 0
     , modMask            = myModMask
     , workspaces         = myWorkspaces
-    , logHook            = --ppXbar xmproc
-                           myLogHook
+    , logHook            = ppXbar xmproc
+                           <+> myLogHook
     , layoutHook         = showWName myLayouts
     , manageHook         = myManageHook
                            <+> manageDocks
@@ -104,8 +90,8 @@ main = do
      `additionalKeysP` myKeys
 
 myTerminal, myEditor :: String
-myTerminal = "terminator"
-myEditor = "emacs" -- nunca vere cual es mejor
+myTerminal = "terminator -T Terminal"
+myEditor = "emacsclient -c" -- nunca vere cual es mejor
 myEditor2 = "vim"
 myModMask :: KeyMask
 myModMask = mod4Mask
@@ -131,6 +117,8 @@ myFadeHook :: FadeHook
 myFadeHook = composeAll [ opaque -- **Important that this is in first place
                         , isUnfocused --> opacity 0.75 -- all unfocused
                         , className =? "mplayer2"  --> opaque -- example ^
+                        , className =? "Emacs"  --> opaque
+                        , title =? "Speedbar 1.0"  --> opaque
                         ]
 
 -- |
@@ -144,24 +132,17 @@ myStartupHook = do
 -- | App on start, more easy form to a start-hook.sh
 myAppOnStartup :: String
 myAppOnStartup = flip (++) "&" . intercalate " &\n" $
-      [ "compton",
-        -- "emacs --daemon",
-        -- "radeontray", -- no funciona sin root TODO
-        -- "/home/eleazar/.cabal/bin/Kashe",
-        -- "nm-applet",
-        "start-pulseaudio-x11",
-        "guake",
-        "synapse",
-        "nitrogen --restore",
-        "pa-applet",
-        -- "octopi-notifier", -- optimizando energia :\
-        "parcellite"
-        --"/usr/bin/gnome-keyring-daemon --start --components=ssh,secrets,gpg,pkcs11",
-        --"wicd-client --tray"
-        --"/usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1",
-        --"xdg-user-dirs-gtk-update",
-        --"/opt/extras.ubuntu.com/my-weather-indicator/bin/my-weather-indicator"
-        -- "taffybar -c=configfile -- TODO
+      [ "xcompmgr"
+      , "emacs --daemon"
+      , "nm-applet"
+      , "gnome-sound-applet"
+      , "synapse"
+      , "nitrogen --restore"
+      , "gnome-keyring-daemon --start --components=gpg,pkcs11,secrets,ssh"
+      -- , "nautilus -n"
+      -- "pa-applet",
+      -- "octopi-notifier", -- optimizando energia :\
+      -- "parcellite"
       ]
 
 myLogHook :: X ()
@@ -183,32 +164,44 @@ ppXbar bar = dynamicLogWithPP . namedScratchpadFilterOutWorkspacePP $ xmobarPP
 --------------------------------------------------------------------------------
 -- Layouts
 --
+named x = renamed [Replace x] . minimize . avoidStruts
+
+
 myLayouts = onWorkspace "Chat" pidginLayout $
-            onWorkspace "Hask" codeLayouts $ defaultLayouts
+            onWorkspace "Hask" codeLayouts $
+            onWorkspace "Expl" explLayout $
+            onWorkspace "Web"  (named "Web" Full) defaultLayouts
 
-
-tiledLayout = Tall nmaster delta ratio
+tiledLayout = named "Tiled" $ Tall nmaster delta ratio
   where
     nmaster = 1      -- The default number of windows in the master pane.
     ratio   = 1/2    -- Default proportion of screen occupied by master pane.
     delta   = 3/100  -- Percent of screen to increment by when resizing panes.
-fixedLayout = FixedColumn 1 20 80 10
-codeLayouts = avoidStruts tiledLayout ||| (avoidStruts (Mirror tiledLayout)) ||| Full
-pidginLayout = avoidStruts $ withIM (35/100) (Or (Role "buddy_list") (Role "ConversationsWindow")) Grid
+tabbedLayout = named "Tabbed" (tabbed shrinkText defaultTheme)
+magnifierLayout = named "Magnifier" (magnifier $ ResizableTall 1 (3/100) (1/2) [])
 
-scratchpads = [ NS "fvim" "gvim --role fvim" (role =? "fvim") box,
-                NS "terminal" "lxterminal" (className =? "Lxterminal") box
-                -- NS "Kashe" "/home/elediaz/.cabal/bin/Kashe" (className =? "Kashe") box
+
+explLayout = tabbedLayout ||| magnifierLayout
+
+codeLayouts = named "Code" Full ||| (named "Emacs" $ avoidStruts (withIM (15/100) (Title "Speedbar 1.0") Grid))
+
+pidginLayout = named "Chat" $ avoidStruts $ withIM (35/100) (Not (Role "ConversationsWindow")) Grid
+
+defaultLayouts = tiledLayout
+              ||| magnifierLayout
+              ||| tabbedLayout
+
+
+scratchpads = [ NS "fvim" "gvim --role fvim" (role =? "fvim") box
+              , NS "terminal" "terminator -T scratch"
+                       (title =? "scratch")
+                       (customFloating $ W.RationalRect 0 (3/5) 1 (20/50))
+              , NS "Kashe" "/home/elediaz/.xmonad/Kashe" (className =? "Kashe") box
+              , NS "Pomodoro" "gnome-clocks"
+                       (title =? "Relojes")
+                       (customFloating $ W.RationalRect (1/20) (1/20) (18/20) (18/20))
               ] where role = stringProperty "WM_WINDOW_ROLE"
                       box  = customFloating $ W.RationalRect (1/6) (1/6) (2/3) (2/3)
-
-defaultLayouts = named "Grid"       Grid
-              ||| named "Full"      Full
-              ||| named "Mirror"    (Mirror $ ResizableTall 1 (3/100) (1/2) [])
-              ||| named "Magnifier" (magnifier $ ResizableTall 1 (3/100) (1/2) [])
-              ||| named "Buttons"   (buttonDeco shrinkText defaultThemeWithButtons (layoutHook defaultConfig))
-              ||| named "Tabbed"    (tabbed shrinkText defaultTheme)
-        where named x = renamed [Replace x] . minimize . avoidStruts
 
 -- Window rules:
 myManageHook :: ManageHook
@@ -220,19 +213,20 @@ myManageHook = composeAll . concat $
              ++ [inWorksp (const doFloat) () myFloats]
 
          where doShiftAndGo = doF . liftM2 (.) W.greedyView W.shift
-               inWorksp d w s = [(className =? x <||> title =? x <||> resource =? x) --> (d w) | x <- s]
+               inWorksp d w s = [(className =? x <||> title =? x <||> resource =? x) --> d w | x <- s]
                myShifts = [[], [], [], my1Shifts, my2Shifts, my3Shifts, my4Shifts, my5Shifts, my6Shifts, my7Shifts, my8Shifts, my9Shifts]
-               myFloats = ["Notas adhesivas", "Terminator Preferences", "Guake", "guake.py", "Escritorio","notification-daemon"]
+               myFloats = ["Notas adhesivas", "Terminator Preferences", "Guake", "guake.py", "Escritorio","notification-daemon"
+                          , "plasma-desktop", "klipper"]
                myIgnores = ["xfce4-notifyd", "conky", "gnome-panel", "oblogout"]
-               my1Shifts = [myTerminal]
-               my2Shifts = ["nautilus", "thunar", "ranger", "dolphin"]
+               my1Shifts = ["Terminal"]
+               my2Shifts = ["ark", "nautilus", "thunar", "ranger", "dolphin"]
                my3Shifts = []
                my4Shifts = ["evince", "okular", "zathura"]
                my5Shifts = ["gedit", "emacs","sublime_text", "gvim", "leksah", "Yi"]
-               my6Shifts = ["chromium"]
+               my6Shifts = ["chromium-browser"]
                my7Shifts = ["emphaty","quassel", "thunderbird", "Pidgin", "skype"]
-               my8Shifts = ["clementine", "banshee"]
-               my9Shifts = ["inkscape"]
+               my8Shifts = ["clementine", "banshee", "rhythmbox"]
+               my9Shifts = ["inkscape", "blender"]
 
 --------------------------------------------------------------------------------
 -- Keybinding
@@ -241,19 +235,22 @@ myManageHook = composeAll . concat $
 -- GSConfig options:
 myGSConfig :: HasColorizer a => GSConfig a
 myGSConfig = defaultGSConfig
-    { gs_cellheight = 50
-    , gs_cellwidth = 250
-    , gs_cellpadding = 10
-    --, gs_font = "" ++ myFont ++ ""
-    }
+             { gs_cellheight = 50
+             , gs_cellwidth = 150
+             , gs_cellpadding = 10
+             , gs_font = "xft:Ubuntu-11"
+             }
 
 -- XPConfig options:
 myXPConfig :: XPConfig
-myXPConfig = defaultXPConfig { promptBorderWidth = 1
-                             , position = Top
-                             , height = 30
-                             , historySize = 100
-                             }
+myXPConfig = defaultXPConfig
+             { promptBorderWidth = 1
+             , position = Top
+             , height = 30
+             , historySize = 10
+             , font = "xft:Ubuntu-11"
+             , autoComplete = Just 1
+             }
 
 -- | M mk ref to mymodmask, C -> Ctrl, S -> Shift, M1 -> Alt
 myKeyBindings :: [(String, X ())]
@@ -267,30 +264,36 @@ myKeyBindings = [ ( "M-b",               sendMessage ToggleStruts) -- Set a curr
                 , ( "M-C-m",             sendMessage Toggle     ) -- On/Off the ZoomEnd -- Magnified layout
                 , ( "M-S-g",             gridselectWorkspace myGSConfig (\ws -> W.greedyView ws . W.shift ws)) -- display grid select and go to selected workspace
                 , ( "M-g",               goToSelected myGSConfig) -- display grid select and go to selected window
-                , ( "M-q",               spawn "killall dzen2 ; killall conky ; killall tint2 ; killall taffybar-linux-x86_64; xmonad --recompile && xmonad --restart")
+                , ( "M-q",               spawn $ concat [ "killall dzen2 ;"
+                                                        , "killall conky ; "
+                                                        , "killall xmobar "
+                                                        , "; killall xmobar;"
+                                                        , "xmonad --recompile && xmonad --restart"])
                 , ( "M-<Print>",         spawn "scrot screen_%Y-%m-%d.png -d 1") -- take screenshot
                 , ( "M-f",               spawn "synapse") -- launcher
                 , ( "M-x",               runOrRaisePrompt myXPConfig) -- alternative to synapse
                 , ( "M-l",               layoutPrompt myXPConfig) -- launcher for layout
                 , ( "M-S-x",             changeDir myXPConfig) -- en que situaciones sirve???
                 , ( "M-t",               withFocused $ windows . W.sink) -- rehook app to layout if this is float
-                , ( "M-c",               spawn "chromium")
+                , ( "M-c",               spawn "chromium-browser")
                 , ( "M-w",               spawn "oblogout")
-                , ( "M-n",               spawn "thunar")
-                , ( "C-M-t",             spawn "modprobe -i psmouse") -- activa touchpad -- To TestMODE
-                , ( "C-M-S-t",           spawn "modprobe -r psmouse") -- disable touchpad
+                , ( "M-n",               spawn "dolphin")
+                , ( "M-p",               spawn "xprop | ~/xmonadpropwrite")
+                , ( "C-M-t",             spawn "gksu \"modprobe -i psmouse\"") -- activa touchpad -- To TestMODE
+                , ( "C-M-S-t",           spawn "gksu \"modprobe -r psmouse\"") -- disable touchpad
                 , ( "M-e",               spawn myEditor)
                 , ( "M-u",               focusUrgent) -- me redirige al foco urgente
                 , ( "M-S-t",             namedScratchpadAction scratchpads "terminal")
                 , ( "M-S-v",             namedScratchpadAction scratchpads "fvim")
-                -- , ( "M-S-a",             namedScratchpadAction scratchpads "Kashe")
-                , ( "<XF86AudioMute>",        spawn "amixer -q set Master toggle")
-                , ( "<XF86AudioLowerVolume>", spawn "amixer -q set Master 1%-")
-                , ( "<XF86AudioRaiseVolume>", spawn "amixer -q set Master 1%+")
-                , ( "<XF86AudioPlay>",        spawn "mpc play") -- TODO: play and pause
-                , ( "<XF86AudioStop>",        spawn "mpc stop")
-                , ( "<XF86AudioPrev>",        spawn "mpc prev")
-                , ( "<XF86AudioNext>",        spawn "mpc next")
+                , ( "M-S-a",             namedScratchpadAction scratchpads "Kashe")
+                , ( "M-S-p",             namedScratchpadAction scratchpads "Pomodoro")
+                , ( "<XF86AudioMute>",        spawn "amixer -c 1 set Master toggle")
+                , ( "<XF86AudioLowerVolume>", spawn "amixer -c 1 set Master 1%-")
+                , ( "<XF86AudioRaiseVolume>", spawn "amixer -c 1 set Master 1%+")
+                --, ( "<XF86AudioPlay>",        spawn "mpc play") -- TODO: play and pause
+                --, ( "<XF86AudioStop>",        spawn "mpc stop")
+                --, ( "<XF86AudioPrev>",        spawn "mpc prev")
+                --, ( "<XF86AudioNext>",        spawn "mpc next")
                 ]
 
 
