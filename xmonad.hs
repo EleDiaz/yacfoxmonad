@@ -2,6 +2,7 @@
 -- ~/.xmonad/xmonad.hs
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ParallelListComp          #-}
+{-# LANGUAGE FlexibleContexts          #-}
 ------------------------------------------------------------------------
 
 import           XMonad
@@ -68,16 +69,15 @@ import           Data.List
 main :: IO ()
 main = do
   -- conky <- spawnPipe "conky"
-  xmproc <- spawnPipe "/home/elediaz/.cabal/bin/xmobar /home/elediaz/.xmonad/xmobar.hs"
-  xmbar  <- spawnPipe "/home/elediaz/.cabal/bin/xmobar /home/elediaz/.xmonad/bar2.hs"
+  -- xmproc <- spawnPipe "/home/elediaz/.cabal/bin/xmobar /home/elediaz/.xmonad/xmobar.hs"
+  -- xmbar  <- spawnPipe "/home/elediaz/.cabal/bin/xmobar /home/elediaz/.xmonad/bar2.hs"
   xmonad $ withUrgencyHook NoUrgencyHook $ ewmh $ defaultConfig
     { terminal           = myTerminal
     , focusFollowsMouse  = False
     , borderWidth        = 0
     , modMask            = myModMask
     , workspaces         = myWorkspaces
-    , logHook            = ppXbar xmproc
-                           <+> myLogHook
+    , logHook            = myLogHook
     , layoutHook         = showWName myLayouts
     , manageHook         = myManageHook
                            <+> manageDocks
@@ -90,8 +90,8 @@ main = do
      `additionalKeysP` myKeys
 
 myTerminal, myEditor :: String
-myTerminal = "terminator -T Terminal"
-myEditor = "emacsclient -c" -- nunca vere cual es mejor
+myTerminal = "gnome-terminal" -- best support for colors
+myEditor = "gnome-terminal -e 'fish -c nvim'"
 myEditor2 = "vim"
 myModMask :: KeyMask
 myModMask = mod4Mask
@@ -99,23 +99,22 @@ myModMask = mod4Mask
 myWorkspaces :: [String]
 myWorkspaces =
   [
-    "Any", "Not", "Nev",
     "Term", "Expl", "Game",
     "Docu", "Hask", "Web",
     "Chat", "Play", "Inks"
   ]
 
--- | On start xmonad, set this workspace how current
+-- | On start xmonad, set this workspace as current on start up
 startupWorkspace :: [Char]
 startupWorkspace = "Hask"
 
--- | fullscreen support, don't hide dock (xmobar, taffybar), minimize window support
+-- | fullscreen support, minimize window support
 myHandleEventHook = fullscreenEventHook <+> docksEventHook <+> minimizeEventHook
 
 -- | set opacity to unfocused windows, add app property for set up the opacity
 myFadeHook :: FadeHook
 myFadeHook = composeAll [ opaque -- **Important that this is in first place
-                        , isUnfocused --> opacity 0.75 -- all unfocused
+						, isUnfocused --> opacity 0.80 -- all unfocused
                         , className =? "mplayer2"  --> opaque -- example ^
                         , className =? "Emacs"  --> opaque
                         , title =? "Speedbar 1.0"  --> opaque
@@ -132,13 +131,13 @@ myStartupHook = do
 -- | App on start, more easy form to a start-hook.sh
 myAppOnStartup :: String
 myAppOnStartup = flip (++) "&" . intercalate " &\n" $
-      [ "xcompmgr"
-      , "emacs --daemon"
+      [ "compton"
       , "nm-applet"
       , "gnome-sound-applet"
       , "synapse"
       , "nitrogen --restore"
       , "gnome-keyring-daemon --start --components=gpg,pkcs11,secrets,ssh"
+	  , "yabar"
       -- , "nautilus -n"
       -- "pa-applet",
       -- "octopi-notifier", -- optimizando energia :\
@@ -214,7 +213,7 @@ myManageHook = composeAll . concat $
 
          where doShiftAndGo = doF . liftM2 (.) W.greedyView W.shift
                inWorksp d w s = [(className =? x <||> title =? x <||> resource =? x) --> d w | x <- s]
-               myShifts = [[], [], [], my1Shifts, my2Shifts, my3Shifts, my4Shifts, my5Shifts, my6Shifts, my7Shifts, my8Shifts, my9Shifts]
+               myShifts = [my1Shifts, my2Shifts, my3Shifts, my4Shifts, my5Shifts, my6Shifts, my7Shifts, my8Shifts, my9Shifts]
                myFloats = ["Notas adhesivas", "Terminator Preferences", "Guake", "guake.py", "Escritorio","notification-daemon"
                           , "plasma-desktop", "klipper"]
                myIgnores = ["xfce4-notifyd", "conky", "gnome-panel", "oblogout"]
@@ -252,35 +251,39 @@ myXPConfig = defaultXPConfig
              , autoComplete = Just 1
              }
 
--- | M mk ref to mymodmask, C -> Ctrl, S -> Shift, M1 -> Alt
-myKeyBindings :: [(String, X ())]
-myKeyBindings = [ ( "M-b",               sendMessage ToggleStruts) -- Set a current app in full screen, hide all bars
-                , ( "M-a",               sendMessage MirrorShrink)
-                , ( "M-z",               sendMessage MirrorExpand)
-                , ( "M-m",               withFocused minimizeWindow) -- Minimize app
-                , ( "M-S-m",             sendMessage RestoreNextMinimizedWin) -- UnMinimize app
-                , ( "M-C-<KP_Add>",      sendMessage MagnifyMore) -- Zoom in focus app  -- Magnified layout
-                , ( "M-C-<KP_Subtract>", sendMessage MagnifyLess) -- Zoom out focus app --
-                , ( "M-C-m",             sendMessage Toggle     ) -- On/Off the ZoomEnd -- Magnified layout
+{- Old bindings not used
+				, ( "M-a",               sendMessage MirrorShrink)
+	            , ( "M-z",               sendMessage MirrorExpand)
                 , ( "M-S-g",             gridselectWorkspace myGSConfig (\ws -> W.greedyView ws . W.shift ws)) -- display grid select and go to selected workspace
                 , ( "M-g",               goToSelected myGSConfig) -- display grid select and go to selected window
-                , ( "M-q",               spawn $ concat [ "killall dzen2 ;"
-                                                        , "killall conky ; "
-                                                        , "killall xmobar "
-                                                        , "; killall xmobar;"
-                                                        , "xmonad --recompile && xmonad --restart"])
-                , ( "M-<Print>",         spawn "scrot screen_%Y-%m-%d.png -d 1") -- take screenshot
-                , ( "M-f",               spawn "synapse") -- launcher
                 , ( "M-x",               runOrRaisePrompt myXPConfig) -- alternative to synapse
                 , ( "M-l",               layoutPrompt myXPConfig) -- launcher for layout
                 , ( "M-S-x",             changeDir myXPConfig) -- en que situaciones sirve???
-                , ( "M-t",               withFocused $ windows . W.sink) -- rehook app to layout if this is float
-                , ( "M-c",               spawn "chromium-browser")
                 , ( "M-w",               spawn "oblogout")
                 , ( "M-n",               spawn "dolphin")
                 , ( "M-p",               spawn "xprop | ~/xmonadpropwrite")
                 , ( "C-M-t",             spawn "gksu \"modprobe -i psmouse\"") -- activa touchpad -- To TestMODE
                 , ( "C-M-S-t",           spawn "gksu \"modprobe -r psmouse\"") -- disable touchpad
+-}
+
+-- | M mk ref to mymodmask, C -> Ctrl, S -> Shift, M1 -> Alt
+myKeyBindings :: [(String, X ())]
+myKeyBindings = [ ( "M-b",               sendMessage ToggleStruts) -- Set a current app in fullscreen, hide all bars
+                , ( "M-m",               withFocused minimizeWindow) -- Minimize app
+                , ( "M-S-m",             sendMessage RestoreNextMinimizedWin) -- UnMinimize app
+                , ( "M-C-<KP_Add>",      sendMessage MagnifyMore) -- Zoom in focus app  -- Magnified layout
+                , ( "M-C-<KP_Subtract>", sendMessage MagnifyLess) -- Zoom out focus app --
+                , ( "M-C-m",             sendMessage Toggle     ) -- On/Off the ZoomEnd -- Magnified layout
+                , ( "M-g",               spawn "rofi -show window") -- Switch between windows
+                , ( "M-q",               spawn $ concat [ "killall dzen2 ;"
+                                                        , "killall conky ;"
+														, "killall xmobar;"
+                                                        , "; killall xmobar;"
+                                                        , "xmonad --recompile && xmonad --restart"])
+                , ( "M-<Print>",         spawn "scrot screen_%Y-%m-%d.png -d 1") -- take screenshot
+                , ( "M-f",               spawn "rofi -show run") -- launcher
+                , ( "M-t",               withFocused $ windows . W.sink) -- rehook app to layout if this is float
+                , ( "M-c",               spawn "chromium-browser")
                 , ( "M-e",               spawn myEditor)
                 , ( "M-u",               focusUrgent) -- me redirige al foco urgente
                 , ( "M-S-t",             namedScratchpadAction scratchpads "terminal")
@@ -300,15 +303,13 @@ myKeyBindings = [ ( "M-b",               sendMessage ToggleStruts) -- Set a curr
 -- TECLADO NUMERICO
 -- | There are same with num bloq or without
 numPadKeys :: [String]
-numPadKeys = [ "<KP_Insert>", "<KP_Delete>", "<KP_Enter>"
-             , "<KP_End>",    "<KP_Down>",   "<KP_Page_Down>"
+numPadKeys = [ "<KP_End>",    "<KP_Down>",   "<KP_Page_Down>"
              , "<KP_Left>",   "<KP_Begin>",  "<KP_Right>"
              , "<KP_Home>",   "<KP_Up>",     "<KP_Page_Up>"
              ]
 
 numKeys :: [String]
-numKeys = [ "0", "<KP_Decimal>", "<KP_Equal>"
-          , "1", "2", "3"
+numKeys = [ "1", "2", "3"
           , "4", "5", "6"
           , "7", "8", "9"
           ]
