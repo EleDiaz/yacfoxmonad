@@ -114,7 +114,7 @@ myHandleEventHook = fullscreenEventHook <+> docksEventHook <+> minimizeEventHook
 -- | set opacity to unfocused windows, add app property for set up the opacity
 myFadeHook :: FadeHook
 myFadeHook = composeAll [ opaque -- **Important that this is in first place
-						, isUnfocused --> opacity 0.80 -- all unfocused
+                        , isUnfocused --> opacity 0.80 -- all unfocused
                         , className =? "mplayer2"  --> opaque -- example ^
                         , className =? "Emacs"  --> opaque
                         , title =? "Speedbar 1.0"  --> opaque
@@ -133,12 +133,11 @@ myAppOnStartup :: String
 myAppOnStartup = flip (++) "&" . intercalate " &\n" $
       [ "compton"
       , "nm-applet"
-      , "gnome-sound-applet"
-      , "synapse"
       , "nitrogen --restore"
       , "gnome-keyring-daemon --start --components=gpg,pkcs11,secrets,ssh"
-	  , "yabar"
-      -- , "nautilus -n"
+      , "taffybar"
+      , "qasmixer -t"
+      , "~/Telegram/Telegram"
       -- "pa-applet",
       -- "octopi-notifier", -- optimizando energia :\
       -- "parcellite"
@@ -154,9 +153,9 @@ myLogHook = fadeWindowsLogHook myFadeHook
 ppXbar bar = dynamicLogWithPP . namedScratchpadFilterOutWorkspacePP $ xmobarPP
                 { ppOutput = hPutStrLn bar
                 , ppHiddenNoWindows = id
-                , ppHidden = xmobarColor "green" ""
+                , ppHidden = xmobarColor "yellow" ""
                 , ppTitle = xmobarColor "white" "" . shorten 39
-                , ppCurrent = xmobarColor "yellow" ""
+                , ppCurrent = xmobarColor "red" ""
                 , ppOrder = (\(ws:l:t:xs) -> [t,l,ws])
                 , ppSep = "   "}
 
@@ -252,8 +251,8 @@ myXPConfig = defaultXPConfig
              }
 
 {- Old bindings not used
-				, ( "M-a",               sendMessage MirrorShrink)
-	            , ( "M-z",               sendMessage MirrorExpand)
+                , ( "M-a",               sendMessage MirrorShrink)
+                , ( "M-z",               sendMessage MirrorExpand)
                 , ( "M-S-g",             gridselectWorkspace myGSConfig (\ws -> W.greedyView ws . W.shift ws)) -- display grid select and go to selected workspace
                 , ( "M-g",               goToSelected myGSConfig) -- display grid select and go to selected window
                 , ( "M-x",               runOrRaisePrompt myXPConfig) -- alternative to synapse
@@ -277,7 +276,7 @@ myKeyBindings = [ ( "M-b",               sendMessage ToggleStruts) -- Set a curr
                 , ( "M-g",               spawn "rofi -show window") -- Switch between windows
                 , ( "M-q",               spawn $ concat [ "killall dzen2 ;"
                                                         , "killall conky ;"
-														, "killall xmobar;"
+                                                        , "killall xmobar;"
                                                         , "; killall xmobar;"
                                                         , "xmonad --recompile && xmonad --restart"])
                 , ( "M-<Print>",         spawn "scrot screen_%Y-%m-%d.png -d 1") -- take screenshot
@@ -290,9 +289,9 @@ myKeyBindings = [ ( "M-b",               sendMessage ToggleStruts) -- Set a curr
                 , ( "M-S-v",             namedScratchpadAction scratchpads "fvim")
                 , ( "M-S-a",             namedScratchpadAction scratchpads "Kashe")
                 , ( "M-S-p",             namedScratchpadAction scratchpads "Pomodoro")
-                , ( "<XF86AudioMute>",        spawn "amixer -c 1 set Master toggle")
-                , ( "<XF86AudioLowerVolume>", spawn "amixer -c 1 set Master 1%-")
-                , ( "<XF86AudioRaiseVolume>", spawn "amixer -c 1 set Master 1%+")
+                -- , ( "<XF86AudioMute>",        spawn "amixer -c 1 set Master toggle") -- Always a disaster make works
+                -- , ( "<XF86AudioLowerVolume>", spawn "amixer -c 1 set Master 1%-")
+                -- , ( "<XF86AudioRaiseVolume>", spawn "amixer -c 1 set Master 1%+")
                 --, ( "<XF86AudioPlay>",        spawn "mpc play") -- TODO: play and pause
                 --, ( "<XF86AudioStop>",        spawn "mpc stop")
                 --, ( "<XF86AudioPrev>",        spawn "mpc prev")
