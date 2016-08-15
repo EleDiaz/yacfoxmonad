@@ -25,6 +25,7 @@ import           XMonad.Hooks.Minimize
 import           XMonad.Hooks.SetWMName
 import           XMonad.Hooks.ToggleHook
 import           XMonad.Hooks.UrgencyHook
+import           XMonad.Hooks.Place
 
 --------------------------------------------------------------------------------
 -- Layout imports
@@ -39,15 +40,15 @@ import           XMonad.Layout.Renamed
 import           XMonad.Layout.ResizableTile
 import           XMonad.Layout.ShowWName
 import           XMonad.Layout.Tabbed
-import           XMonad.Layout.WorkspaceDir
+-- import           XMonad.Layout.WorkspaceDir
 
 --------------------------------------------------------------------------------
 -- Others from Xmonad
 --------------------------------------------------------------------------------
 -- import XMonad.Prompt.Shell
 import           XMonad.Prompt
-import           XMonad.Prompt.Layout
-import           XMonad.Prompt.RunOrRaise
+-- import           XMonad.Prompt.Layout
+-- import           XMonad.Prompt.RunOrRaise
 
 import qualified XMonad.StackSet             as W
 import           XMonad.Util.EZConfig
@@ -60,6 +61,8 @@ import           XMonad.Util.SpawnOnce
 --------------------------------------------------------------------------------
 import           Control.Monad               (liftM2)
 import           Data.List
+import           Data.Monoid
+import           Data.Ratio
 -- import DBus.Client
 -- import System.Taffybar.XMonadLog ( dbusLog )
 
@@ -71,7 +74,7 @@ main = do
   -- conky <- spawnPipe "conky"
   -- xmproc <- spawnPipe "/home/elediaz/.cabal/bin/xmobar /home/elediaz/.xmonad/xmobar.hs"
   -- xmbar  <- spawnPipe "/home/elediaz/.cabal/bin/xmobar /home/elediaz/.xmonad/bar2.hs"
-  xmonad $ withUrgencyHook NoUrgencyHook $ ewmh $ defaultConfig
+  xmonad $ withUrgencyHook NoUrgencyHook $ ewmh $ def
     { terminal           = myTerminal
     , focusFollowsMouse  = False
     , borderWidth        = 0
@@ -84,8 +87,9 @@ main = do
                            <+> dynamicMasterHook
                            <+> toggleHook "float" doFloat
                            <+> namedScratchpadManageHook scratchpads
+                           <+> placeHook (fixed (1%2, 1%2))
     , handleEventHook    = myHandleEventHook
-    , startupHook        = myStartupHook >> checkKeymap defaultConfig myKeys
+    , startupHook        = myStartupHook >> checkKeymap def myKeys
     }
      `additionalKeysP` myKeys
 
@@ -109,6 +113,7 @@ startupWorkspace :: [Char]
 startupWorkspace = "Hask"
 
 -- | fullscreen support, minimize window support
+myHandleEventHook :: Event -> X All
 myHandleEventHook = fullscreenEventHook <+> docksEventHook <+> minimizeEventHook
 
 -- | set opacity to unfocused windows, add app property for set up the opacity
@@ -124,7 +129,7 @@ myFadeHook = composeAll [ opaque -- **Important that this is in first place
 myStartupHook :: X ()
 myStartupHook = do
         setWMName "LG3D"
-        startupHook defaultConfig
+        startupHook def
         spawnOnce myAppOnStartup
         windows $ W.greedyView startupWorkspace
 
@@ -135,8 +140,10 @@ myAppOnStartup = flip (++) "&" . intercalate " &\n" $
       , "nm-applet"
       , "nitrogen --restore"
       , "gnome-keyring-daemon --start --components=gpg,pkcs11,secrets,ssh"
-      , "taffybar"
-      , "qasmixer -t"
+      -- , "taffybar"
+      , "lxqt-panel"
+      , "yabar"
+      -- , "qasmixer -t"
       , "~/Telegram/Telegram"
       -- "pa-applet",
       -- "octopi-notifier", -- optimizando energia :\
@@ -214,7 +221,7 @@ myManageHook = composeAll . concat $
                inWorksp d w s = [(className =? x <||> title =? x <||> resource =? x) --> d w | x <- s]
                myShifts = [my1Shifts, my2Shifts, my3Shifts, my4Shifts, my5Shifts, my6Shifts, my7Shifts, my8Shifts, my9Shifts]
                myFloats = ["Notas adhesivas", "Terminator Preferences", "Guake", "guake.py", "Escritorio","notification-daemon"
-                          , "plasma-desktop", "klipper"]
+                          , "plasma-desktop", "klipper", "lxqt-panel"]
                myIgnores = ["xfce4-notifyd", "conky", "gnome-panel", "oblogout"]
                my1Shifts = ["Terminal"]
                my2Shifts = ["ark", "nautilus", "thunar", "ranger", "dolphin"]
