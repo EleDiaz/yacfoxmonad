@@ -5,46 +5,19 @@ Yet another config file of Xmonad. Programs used for this configuration:
 
  * xmonad, xmonad-contrib
  * xmobar
- * Kashe - Pequeño programa artesanal, para no tener que usar trayicon..., siver para ver la hora y los iconos de notificación
-   * Su compilación debe ser tal que así(sino, no funcionará la hora!):
-     ```shell
-     ghc Kashe.hs -threaded
-     ```
+ - A Nerdfont -- It's important
 
-```haskell
-main :: IO ()
-main = do
+I reduce the keybinds to minimal, the really useful keys. I have some workaround the theme but there parts where lacks customize.
 
-  xmonad $ withUrgencyHook NoUrgencyHook $ ewmh $ defaultConfig
-    { terminal           = myTerminal
-    -- ^ Elige tu terminal
-    , focusFollowsMouse  = False
-    -- ^ El raton cambia el foco segun lo mueves de una a otra ventana
-    , borderWidth        = 0
-    -- ^ Un borde para separar las ventanas
-    , modMask            = myModMask
-    -- ^ Elige tu tecla 'maestra'
-    , workspaces         = myWorkspaces
-    -- ^ Escritorios disponibles (una lista de cadenas)
-    , logHook            = myLogHook
-    -- ^ Para poder saber en que ventana, escritorio... estoy.
-    , layoutHook         = showWName myLayouts
-    -- ^ Configuración del posicionamiento de las ventanas
-    , manageHook         = myManageHook
-                           <+> manageDocks
-                           <+> dynamicMasterHook
-                           <+> toggleHook "float" doFloat
-                           <+> namedScratchpadManageHook scratchpads
-    -- ^ Se controla donde se ponen las ventanas, su comportamiento según escritorio
-    , handleEventHook    = myHandleEventHook
-    , startupHook        = myStartupHook >> checkKeymap defaultConfig myKeys
-    -- ^ Cuando iniciamos el Tiling manager, importante chequear las teclas, para evitar colisiones
-    }
-     `additionalKeysP` myKeys
-```
+One important thing: The Workspaces are the numpad(too you can use numbers row). Well I want to say you, can navigate between workspaces with arrows keys.
+
+
+- I would like a displayable menu with keybinds and its meaning. TODO:
+- Finish convert strings to icons
+- Add the .desktop file
 
 Preview
 -------
 
-La imagen no coincide exactamente pero viene siendo algo parecido, con fondo distinto
+The bar is xmobar. The editor is neovim-qt. And launcher rofi. As well standalonetray in the desktop background. Compton with default is "fine"
 ![Image](../master/preview.png?raw=true)
