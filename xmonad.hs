@@ -143,7 +143,7 @@ myAppOnStartup :: String
 myAppOnStartup =
   flip (++) "&" . intercalate " &\n" $
   [ "compton"
-  , "stalonetray -v --window-strut none --sticky --tint-color black"
+  , "stalonetray --window-strut none --sticky -t --geometry 1x1+0-0 --grow-gravity W"
   , "nm-applet"
   , "nitrogen --restore"
   , "gnome-keyring-daemon --start --components=gpg,pkcs11,secrets,ssh"
@@ -217,7 +217,7 @@ myLayouts =
   onWorkspace play circleLayout $ onWorkspace web fullLayout defaultLayouts
 
 columns = "\61659" -- 
-tiledLayout = named columns $ Tall 1 (1 / 2) (3 / 100)
+tiledLayout = named columns $ Tall 1 (1 / 2) (50 / 100)
 
 tabs = "\61563" -- 
 tabbedLayout = named tabs (tabbed shrinkText eleTheme)
@@ -227,25 +227,26 @@ magnifierLayout =
   named amplified (magnifier $ ResizableTall 1 (3 / 100) (1 / 2) [])
 
 full = "\61618" -- 
-fullLayout = named full Full
+fullLayout = named full Full ||| magnifierLayout
 
 circle = "\61473" -- 
 circleLayout = named circle $ magicFocus $ circleDefault shrinkText eleTheme
 
 code = "\61729" -- 
 codeLayouts =
-  fullLayout ||| named "Emacs" (withIM (15 / 100) (Title "Speedbar 1.0") Grid)
+  fullLayout ||| defaultLayouts-- named "Emacs" (withIM (15 / 100) (Title "Speedbar 1.0") Grid)
 
-defaultLayouts = tiledLayout ||| magnifierLayout ||| tabbedLayout
+defaultLayouts = tiledLayout ||| magnifierLayout ||| tabbedLayout ||| circleLayout
 
 -- pidginLayout = named "Chat" (withIM (35/100) (Not (Role "ConversationsWindow")) Grid)
+
+role' = stringProperty "WM_WINDOW_ROLE"
 
 scratchpads :: [NamedScratchpad]
 scratchpads =
   [ NS "terminal" "gnome-terminal --role=scratch" (role' =? "scratch") (customFloating $ W.RationalRect 0 0 1 (15 / 50))
   , NS "Kashe" "/home/elediaz/.xmonad/Kashe" (className =? "Kashe") box]
   where
-    role' = stringProperty "WM_WINDOW_ROLE"
     box = customFloating $ W.RationalRect (1 / 6) (1 / 6) (2 / 3) (2 / 3)
 
 -- Window rules:
@@ -260,7 +261,7 @@ myManageHook =
   where
     doShiftAndGo = doF . liftM2 (.) W.greedyView W.shift
     inWorksp d w s =
-      [ (className =? x <||> title =? x <||> resource =? x) --> d w
+      [ (className =? x <||> title =? x <||> role' =? x) --> d w
       | x <- s ]
     myShifts = [my1Shifts, my2Shifts, my3Shifts, my4Shifts, my5Shifts, my6Shifts, my7Shifts, my8Shifts, my9Shifts]
     myFloats = ["Terminator Preferences", "notification-daemon", "plasma-desktop", "klipper", "lxqt-panel"]
@@ -269,10 +270,10 @@ myManageHook =
     my2Shifts = ["ark", "nautilus", "thunar", "ranger", "dolphin"]
     my3Shifts = []
     my4Shifts = ["evince", "okular", "zathura"]
-    my5Shifts = ["gedit", "emacs", "sublime_text", "gvim", "leksah", "Yi"]
-    my6Shifts = ["chromium-browser"]
+    my5Shifts = ["gedit", "emacs", "leksah", "Yi"]
+    my6Shifts = ["browser"]
     my7Shifts = ["emphaty", "quassel", "thunderbird", "Pidgin", "skype", "Telegram"]
-    my8Shifts = ["clementine", "banshee", "rhythmbox"]
+    my8Shifts = ["clementine", "banshee", "rhythmbox", "Google Play Music", "qasmixer"]
     my9Shifts = ["inkscape", "blender"]
 --------------------------------------------------------------------------------
 -- Keybinding

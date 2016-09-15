@@ -1,11 +1,11 @@
 Config { font = "xft:FantasqueSansMono Nerd Font-13"
        , borderColor = "#a9212e"
        , borderWidth = 2
-       , border = TopB
+       , border = BottomB
        , bgColor = "black"
        , fgColor = "white"
        , alpha = 255
-       , position = Bottom
+       , position = Top
        , lowerOnStart = False
        , overrideRedirect = False
        , allDesktops = True
@@ -23,9 +23,12 @@ Config { font = "xft:FantasqueSansMono Nerd Font-13"
                     , Run Locks
                     , Run Memory ["-t", "Mem: <used>/<total> MB"] 10
                     , Run XMonadLog
-                    , Run DynNetwork ["-t", "<fc=white,#404040><dev>:  <rx>KB  <tx>KB </fc><fc=#404040></fc>"] 20
+                    , Run DynNetwork ["-t", "<dev>:  <rx>KB  <tx>KB"] 20
+                    , Run CoreTemp ["-t", " <core0>,<core1>,<core2>,<core3> ºC",
+                                    "-L", "40", "-H", "60",
+                                    "-l", "lightblue,#404040", "-n", "gray90,#404040", "-h", "red,#404040"] 50
                     ]
        , sepChar = "%"
        , alignSep = "}{"
-       , template = "%date%%dynnetwork% <fc=red>%locks%</fc> %memory% %multicpu% }{ %XMonadLog% "
+       , template = "<action=`rofi -combi-modi drun,run -show combi`>%date%</action><fc=white,#404040>%memory% <fc=#a9212e,#404040></fc> %coretemp% <fc=#a9212e,#404040></fc> %dynnetwork% </fc><fc=#404040></fc> <fc=red>%locks%</fc> <fc=#a9212e></fc> %multicpu% }{ %XMonadLog% "
        }
