@@ -1,11 +1,11 @@
-Config { font = "xft:FantasqueSansMono Nerd Font-13"
-       , borderColor = "#a9212e"
+Config { font = "xft:FuraCode Nerd Font-13"
+       , borderColor = "#7f0000"
        , borderWidth = 2
        , border = BottomB
        , bgColor = "black"
        , fgColor = "white"
-       , alpha = 255
-       , position = Top
+       , alpha = 128
+       , position = Bottom
        , lowerOnStart = False
        , overrideRedirect = False
        , allDesktops = True
@@ -18,17 +18,17 @@ Config { font = "xft:FantasqueSansMono Nerd Font-13"
                                       "-L", "-15", "-H", "-5",
                                       "-l", "red", "-m", "blue", "-h", "green"]
                                       600
-                    , Run Date "<fc=white,#a9212e>%a %_d %b %H:%M </fc><fc=#a9212e,#404040> </fc>" "date" 100
-                    , Run MultiCpu ["-t", " <fc=red><autovbar></fc>"] 10
+                    , Run Date "<fc=white,#7f0000> %H:%M </fc>" "date" 100
+                    , Run MultiCpu ["-t", " <fc=#7f0000><autovbar></fc>"] 10
                     , Run Locks
-                    , Run Memory ["-t", "Mem: <used>/<total> MB"] 10
+                    , Run Memory ["-t", " <used>/<total> MB"] 10
                     , Run XMonadLog
-                    , Run DynNetwork ["-t", "<dev>:  <rx>KB  <tx>KB"] 20
-                    , Run CoreTemp ["-t", " <core0>,<core1>,<core2>,<core3> ºC",
+                    , Run DynNetwork ["-t", " <rx>KB  <tx>KB"] 20
+                    , Run CoreTemp ["-t", " <core0>·<core1>·<core2>·<core3> ºC",
                                     "-L", "40", "-H", "60",
-                                    "-l", "lightblue,#404040", "-n", "gray90,#404040", "-h", "red,#404040"] 50
+                                    "-l", "lightblue,black", "-n", "gray90,black", "-h", "red,black"] 50
                     ]
        , sepChar = "%"
        , alignSep = "}{"
-       , template = "<action=`rofi -combi-modi drun,run -show combi`>%date%</action><fc=white,#404040>%memory% <fc=#a9212e,#404040></fc> %coretemp% <fc=#a9212e,#404040></fc> %dynnetwork% </fc><fc=#404040></fc> <fc=red>%locks%</fc> <fc=#a9212e></fc> %multicpu% }{ %XMonadLog% "
+       , template = "%date%<fc=#7f0000,black></fc> %memory% <fc=#7f0000,black></fc> %coretemp% <fc=#7f0000,black></fc> %dynnetwork% <fc=#7f0000,black></fc> %locks% %multicpu% }{ %XMonadLog% "
        }
